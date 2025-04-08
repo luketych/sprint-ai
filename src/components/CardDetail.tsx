@@ -362,6 +362,29 @@ const DescriptionMetadata = styled.div`
   align-items: center;
 `;
 
+const TitleSelect = styled.select`
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #34495e;
+  border-radius: 3px;
+  margin-bottom: 0.5rem;
+  background: #34495e;
+  color: #ecf0f1;
+  
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+  }
+`;
+
+const descriptionTitleOptions = [
+  "What does done look like?",
+  "What does good enough look like?",
+  "What tests should be passed?",
+  "Constants: What can't be changed?",
+  "New Technologies:",
+];
+
 interface CardDetailProps {
   card: Card;
   boardId: string;
@@ -450,7 +473,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   };
 
   const handleAddDescription = async () => {
-    if (!newDescription.trim()) return;
+    if (!newDescription.trim() || !newDescriptionTitle) return;
     
     try {
       const tags = newDescriptionTags.split(',').map(tag => tag.trim()).filter(tag => tag);
@@ -486,12 +509,12 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   const handleEditDescription = (description: Description) => {
     setEditingDescription(description);
     setEditDescriptionContent(description.content);
-    setEditDescriptionTitle(description.title);
+    setEditDescriptionTitle(descriptionTitleOptions.includes(description.title) ? description.title : '');
     setEditDescriptionTags(description.tags.join(', '));
   };
 
   const handleSaveDescription = async () => {
-    if (!editingDescription) return;
+    if (!editingDescription || !editDescriptionTitle) return;
 
     try {
       const tags = editDescriptionTags.split(',').map(tag => tag.trim()).filter(tag => tag);
@@ -632,12 +655,16 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             <Description key={description.id}>
               {editingDescription?.id === description.id ? (
                 <>
-                  <EditInput
-                    type="text"
+                  <TitleSelect
                     value={editDescriptionTitle}
                     onChange={(e) => setEditDescriptionTitle(e.target.value)}
-                    placeholder="Title"
-                  />
+                    required
+                  >
+                    <option value="" disabled>Select a title...</option>
+                    {descriptionTitleOptions.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </TitleSelect>
                   <DescriptionTextarea
                     value={editDescriptionContent}
                     onChange={(e) => setEditDescriptionContent(e.target.value)}
@@ -656,7 +683,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                 </>
               ) : (
                 <>
-                  <DescriptionTitle>{description.title}</DescriptionTitle>
+                  {description.title && <DescriptionTitle>{description.title}</DescriptionTitle>}
                   <ReactMarkdown>{description.content}</ReactMarkdown>
                   {description.tags.length > 0 && (
                     <Tags>
@@ -690,12 +717,16 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             </Description>
           ))}
           <AddDescriptionContainer>
-            <Input
-              type="text"
-              placeholder="Description Title"
+            <TitleSelect
               value={newDescriptionTitle}
               onChange={(e) => setNewDescriptionTitle(e.target.value)}
-            />
+              required
+            >
+              <option value="" disabled>Select a title...</option>
+              {descriptionTitleOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </TitleSelect>
             <Input
               type="text"
               placeholder="Tags (comma-separated)"
