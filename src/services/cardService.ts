@@ -1,11 +1,20 @@
 import { Card, CardFolder, Description } from '../types';
 import { fileSystemService } from './fileSystemService';
+import yaml from 'js-yaml';
 
 export class CardServiceError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'CardServiceError';
   }
+}
+
+interface DescriptionFrontmatter {
+  id: string;
+  title: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const cardService = {
@@ -118,31 +127,33 @@ export const cardService = {
       // Get the list of description files
       const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
       
-      // Load the metadata file
-      const metadataPath = `${descriptionsDir}/metadata.json`;
-      let metadata: Record<string, any> = {};
-      try {
-        const metadataContent = await fileSystemService.readFile(metadataPath);
-        metadata = JSON.parse(metadataContent);
-      } catch (error) {
-        // If the file doesn't exist, that's fine
-      }
-
       // Load each description file
       const descriptions: Description[] = [];
       for (const fileName of descriptionFiles) {
         try {
           const descriptionPath = `${descriptionsDir}/${fileName}`;
           const content = await fileSystemService.readFile(descriptionPath);
-          const descriptionMetadata = metadata[fileName] || {};
-          descriptions.push({
-            id: descriptionMetadata.id || fileName,
-            content,
-            title: descriptionMetadata.title || '',
-            tags: descriptionMetadata.tags || [],
-            createdAt: descriptionMetadata.createdAt || new Date().toISOString(),
-            updatedAt: descriptionMetadata.updatedAt || new Date().toISOString()
-          });
+          
+          // Parse YAML frontmatter
+          const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+          let frontmatter: Partial<DescriptionFrontmatter> = {};
+          let markdownContent = content;
+          
+          if (frontmatterMatch) {
+            frontmatter = yaml.load(frontmatterMatch[1]) as Partial<DescriptionFrontmatter>;
+            markdownContent = content.slice(frontmatterMatch[0].length);
+          }
+          
+          const description: Description = {
+            id: frontmatter.id || fileName,
+            content: markdownContent,
+            title: frontmatter.title || '',
+            tags: frontmatter.tags || [],
+            createdAt: frontmatter.createdAt || new Date().toISOString(),
+            updatedAt: frontmatter.updatedAt || new Date().toISOString()
+          };
+          
+          descriptions.push(description);
         } catch (error) {
           console.warn(`Error loading description file: ${fileName}`, error);
         }
@@ -185,38 +196,30 @@ export const cardService = {
       const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
       const nextNumber = descriptionFiles.length + 1;
       const newFileName = `description_${nextNumber}.md`;
+      const id = nextNumber.toString();
       
-      // Create the description metadata
-      const now = new Date().toISOString();
-      const descriptionMetadata = {
-        id: nextNumber.toString(),
-        content: description,
+      // Create the YAML frontmatter
+      const frontmatter = {
+        id,
         title,
         tags,
-        createdAt: now,
-        updatedAt: now
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
+      
+      // Create the markdown content with YAML frontmatter
+      const content = `---
+${yaml.dump(frontmatter)}---
+${description}`;
       
       // Add the new file to the list
       descriptionFiles.push(newFileName);
       const descriptionsJsonPath = `${descriptionsDir}/descriptions.json`;
       await fileSystemService.writeFile(descriptionsJsonPath, JSON.stringify(descriptionFiles, null, 2));
 
-      // Create the new description file with the actual content
+      // Create the new description file with the content
       const descriptionPath = `${descriptionsDir}/${newFileName}`;
-      await fileSystemService.writeFile(descriptionPath, description);
-
-      // Create or update the metadata file
-      const metadataPath = `${descriptionsDir}/metadata.json`;
-      let metadata: Record<string, any> = {};
-      try {
-        const existingMetadata = await fileSystemService.readFile(metadataPath);
-        metadata = JSON.parse(existingMetadata);
-      } catch (error) {
-        // If the file doesn't exist, that's fine
-      }
-      metadata[newFileName] = descriptionMetadata;
-      await fileSystemService.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+      await fileSystemService.writeFile(descriptionPath, content);
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
@@ -224,7 +227,7 @@ export const cardService = {
       const card = JSON.parse(cardContent.trim());
       const updatedCard = {
         ...card,
-        updatedAt: now,
+        updatedAt: new Date().toISOString(),
       };
 
       await fileSystemService.writeFile(cardPath, JSON.stringify(updatedCard, null, 2));
@@ -331,9 +334,85 @@ export const cardService = {
       } catch (error) {
         console.warn('Error deleting card directory:', error);
       }
+
+      // Remove the card from metadata.json
+      const metadataPath = `${boardId}/metadata.json`;
+      if (await fileSystemService.fileExists(metadataPath)) {
+        try {
+          const metadataContent = await fileSystemService.readFile(metadataPath);
+          const metadata = JSON.parse(metadataContent);
+          if (metadata.cards && metadata.cards[cardId]) {
+            delete metadata.cards[cardId];
+            await fileSystemService.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+          }
+        } catch (error) {
+          console.warn('Error updating metadata.json:', error);
+        }
+      }
     } catch (error) {
       console.error('Error deleting card:', error);
       throw new CardServiceError('Failed to delete card');
+    }
+  },
+
+  async updateDescription(boardId: string, cardId: string, descriptionId: string, updates: { content?: string; title?: string; tags?: string[] }): Promise<CardFolder> {
+    try {
+      const descriptionsDir = `${boardId}/${cardId}/descriptions`;
+      const descriptionPath = `${descriptionsDir}/description_${descriptionId}.md`;
+      
+      if (!await fileSystemService.fileExists(descriptionPath)) {
+        throw new CardServiceError(`Description not found: description_${descriptionId}.md`);
+      }
+
+      // Read the current description content
+      const currentContent = await fileSystemService.readFile(descriptionPath);
+      
+      // Parse the current frontmatter
+      const frontmatterMatch = currentContent.match(/^---\n([\s\S]*?)\n---\n/);
+      let frontmatter: Partial<DescriptionFrontmatter> = {};
+      let currentMarkdownContent = currentContent;
+      
+      if (frontmatterMatch) {
+        frontmatter = yaml.load(frontmatterMatch[1]) as Partial<DescriptionFrontmatter>;
+        currentMarkdownContent = currentContent.slice(frontmatterMatch[0].length);
+      }
+
+      // Update the frontmatter with new values
+      const updatedFrontmatter = {
+        id: frontmatter.id || descriptionId,
+        title: updates.title ?? frontmatter.title ?? '',
+        tags: updates.tags ?? frontmatter.tags ?? [],
+        createdAt: frontmatter.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Create the new content with updated frontmatter
+      const newContent = `---
+${yaml.dump(updatedFrontmatter)}---
+${updates.content ?? currentMarkdownContent}`;
+
+      // Write the updated content back to the file
+      await fileSystemService.writeFile(descriptionPath, newContent);
+
+      // Update card's updatedAt
+      const cardPath = `${boardId}/${cardId}/card.json`;
+      const cardContent = await fileSystemService.readFile(cardPath);
+      const card = JSON.parse(cardContent.trim());
+      const updatedCard = {
+        ...card,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await fileSystemService.writeFile(cardPath, JSON.stringify(updatedCard, null, 2));
+
+      return {
+        id: cardId,
+        card: updatedCard,
+        path: cardPath,
+      };
+    } catch (error) {
+      console.error('Error updating description:', error);
+      throw new CardServiceError('Failed to update description');
     }
   }
 };

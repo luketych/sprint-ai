@@ -1,8 +1,8 @@
-export type Description = {
+export interface Description {
   id: string;
   content: string;
   title: string;
   tags: string[];
   createdAt: string;
   updatedAt: string;
-}; 
+} 

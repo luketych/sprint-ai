@@ -272,6 +272,38 @@ const DeleteButton = styled.button`
   }
 `;
 
+const DescriptionActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+`;
+
+const EditDescriptionButton = styled.button`
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 0.8rem;
+  
+  &:hover {
+    color: #3498db;
+  }
+`;
+
+const DeleteDescriptionButton = styled.button`
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 0.8rem;
+  
+  &:hover {
+    color: #e74c3c;
+  }
+`;
+
 interface CardDetailProps {
   card: Card;
   boardId: string;
@@ -284,19 +316,23 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   const [newDescription, setNewDescription] = useState('');
   const [newDescriptionTitle, setNewDescriptionTitle] = useState('');
   const [newDescriptionTags, setNewDescriptionTags] = useState('');
+  const [editingDescription, setEditingDescription] = useState<Description | null>(null);
+  const [editDescriptionContent, setEditDescriptionContent] = useState('');
+  const [editDescriptionTitle, setEditDescriptionTitle] = useState('');
+  const [editDescriptionTags, setEditDescriptionTags] = useState('');
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editedValue, setEditedValue] = useState('');
 
-  useEffect(() => {
-    const loadDescriptions = async () => {
-      try {
-        const loadedDescriptions = await cardService.getDescriptions(boardId, card.id);
-        setDescriptions(loadedDescriptions);
-      } catch (error) {
-        console.error('Failed to load descriptions:', error);
-      }
-    };
+  const loadDescriptions = async () => {
+    try {
+      const loadedDescriptions = await cardService.getDescriptions(boardId, card.id);
+      setDescriptions(loadedDescriptions);
+    } catch (error) {
+      console.error('Failed to load descriptions:', error);
+    }
+  };
 
+  useEffect(() => {
     loadDescriptions();
   }, [boardId, card.id]);
 
@@ -375,6 +411,39 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     }
   };
 
+  const handleEditDescription = (description: Description) => {
+    setEditingDescription(description);
+    setEditDescriptionContent(description.content);
+    setEditDescriptionTitle(description.title);
+    setEditDescriptionTags(description.tags.join(', '));
+  };
+
+  const handleSaveDescription = async () => {
+    if (!editingDescription) return;
+
+    try {
+      const tags = editDescriptionTags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      await cardService.updateDescription(
+        boardId,
+        card.id,
+        editingDescription.id,
+        {
+          content: editDescriptionContent,
+          title: editDescriptionTitle,
+          tags
+        }
+      );
+      setEditingDescription(null);
+      loadDescriptions();
+    } catch (error) {
+      console.error('Error updating description:', error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingDescription(null);
+  };
+
   return (
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()}>
@@ -450,20 +519,53 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
 
         <Section>
           <SectionTitle>Descriptions</SectionTitle>
-          {descriptions.map((description, index) => (
-            <Description key={index}>
-              <DescriptionTitle>{description.title}</DescriptionTitle>
-              {description.tags && description.tags.length > 0 && (
-                <Tags>
-                  {description.tags.map((tag: string, tagIndex: number) => (
-                    <Tag key={tagIndex}>{tag}</Tag>
-                  ))}
-                </Tags>
+          {descriptions.map((description: Description, index) => (
+            <Description key={description.id}>
+              {editingDescription?.id === description.id ? (
+                <>
+                  <EditInput
+                    type="text"
+                    value={editDescriptionTitle}
+                    onChange={(e) => setEditDescriptionTitle(e.target.value)}
+                    placeholder="Title"
+                  />
+                  <DescriptionTextarea
+                    value={editDescriptionContent}
+                    onChange={(e) => setEditDescriptionContent(e.target.value)}
+                    placeholder="Description"
+                  />
+                  <EditInput
+                    type="text"
+                    value={editDescriptionTags}
+                    onChange={(e) => setEditDescriptionTags(e.target.value)}
+                    placeholder="Tags (comma-separated)"
+                  />
+                  <ButtonGroup>
+                    <SaveButton onClick={handleSaveDescription}>Save</SaveButton>
+                    <CancelButton onClick={handleCancelEdit}>Cancel</CancelButton>
+                  </ButtonGroup>
+                </>
+              ) : (
+                <>
+                  <DescriptionTitle>{description.title}</DescriptionTitle>
+                  <ReactMarkdown>{description.content}</ReactMarkdown>
+                  {description.tags.length > 0 && (
+                    <Tags>
+                      {description.tags.map((tag: string, i: number) => (
+                        <Tag key={i}>{tag}</Tag>
+                      ))}
+                    </Tags>
+                  )}
+                  <DescriptionActions>
+                    <EditDescriptionButton onClick={() => handleEditDescription(description)}>
+                      Edit
+                    </EditDescriptionButton>
+                    <DeleteDescriptionButton onClick={() => handleDeleteDescription(index)}>
+                      Delete
+                    </DeleteDescriptionButton>
+                  </DescriptionActions>
+                </>
               )}
-              <ReactMarkdown>{description.content}</ReactMarkdown>
-              <DeleteButton onClick={() => handleDeleteDescription(index)}>
-                Delete
-              </DeleteButton>
             </Description>
           ))}
           <AddDescriptionContainer>
