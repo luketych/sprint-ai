@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import { Board as BoardComponent } from './components/Board'
 import { BoardMenu } from './components/BoardMenu'
-import { Card, Board } from './types'
+import { Board } from './types/index'
 import { boardService } from './services/boardService'
 import './App.css'
 
