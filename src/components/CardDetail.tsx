@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { Card, CardStatus } from '../types';
 import ReactMarkdown from 'react-markdown';
@@ -10,7 +10,7 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -18,14 +18,14 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: white;
+  background: #2c3e50;
   border-radius: 4px;
   padding: 2rem;
   width: 600px;
   max-width: 90vw;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 `;
 
 const CloseButton = styled.button`
@@ -36,16 +36,16 @@ const CloseButton = styled.button`
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #5e6c84;
+  color: #ecf0f1;
   
   &:hover {
-    color: #172b4d;
+    color: #3498db;
   }
 `;
 
 const Title = styled.h2`
   margin: 0 0 1rem 0;
-  color: #172b4d;
+  color: #ecf0f1;
 `;
 
 const Section = styled.div`
@@ -54,13 +54,13 @@ const Section = styled.div`
 
 const SectionTitle = styled.h3`
   margin: 0 0 0.5rem 0;
-  color: #5e6c84;
+  color: #bdc3c7;
   font-size: 0.9rem;
   text-transform: uppercase;
 `;
 
 const Description = styled.div`
-  background: #f4f5f7;
+  background: #34495e;
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 0.5rem;
@@ -80,16 +80,16 @@ const MetadataItem = styled.div`
 
 const Label = styled.span`
   font-size: 0.8rem;
-  color: #5e6c84;
+  color: #bdc3c7;
   margin-bottom: 0.25rem;
 `;
 
 const Value = styled.span`
-  color: #172b4d;
+  color: #ecf0f1;
 `;
 
 const CommitLink = styled.a`
-  color: #0052cc;
+  color: #3498db;
   text-decoration: none;
   
   &:hover {
@@ -100,60 +100,66 @@ const CommitLink = styled.a`
 const EditButton = styled.button`
   background: none;
   border: none;
-  color: #5e6c84;
+  color: #bdc3c7;
   cursor: pointer;
   padding: 0.25rem;
   margin-left: 0.5rem;
   font-size: 0.8rem;
   
   &:hover {
-    color: #172b4d;
+    color: #3498db;
   }
 `;
 
 const EditInput = styled.input`
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #dfe1e6;
+  border: 1px solid #34495e;
   border-radius: 3px;
   margin-bottom: 0.5rem;
+  background: #34495e;
+  color: #ecf0f1;
   
   &:focus {
     outline: none;
-    border-color: #4c9aff;
+    border-color: #3498db;
   }
 `;
 
 const StatusSelect = styled.select`
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #dfe1e6;
+  border: 1px solid #34495e;
   border-radius: 3px;
   margin-bottom: 0.5rem;
+  background: #34495e;
+  color: #ecf0f1;
   
   &:focus {
     outline: none;
-    border-color: #4c9aff;
+    border-color: #3498db;
   }
 `;
 
 const DescriptionTextarea = styled.textarea`
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #dfe1e6;
+  border: 1px solid #34495e;
   border-radius: 3px;
   margin-bottom: 0.5rem;
   min-height: 100px;
   resize: vertical;
+  background: #34495e;
+  color: #ecf0f1;
   
   &:focus {
     outline: none;
-    border-color: #4c9aff;
+    border-color: #3498db;
   }
 `;
 
 const SaveButton = styled.button`
-  background: #0052cc;
+  background: #3498db;
   color: white;
   border: none;
   border-radius: 3px;
@@ -162,20 +168,20 @@ const SaveButton = styled.button`
   margin-right: 0.5rem;
   
   &:hover {
-    background: #0065ff;
+    background: #2980b9;
   }
 `;
 
 const CancelButton = styled.button`
-  background: #f4f5f7;
-  color: #5e6c84;
+  background: #34495e;
+  color: #ecf0f1;
   border: none;
   border-radius: 3px;
   padding: 0.5rem 1rem;
   cursor: pointer;
   
   &:hover {
-    background: #e4e9f2;
+    background: #2c3e50;
   }
 `;
 
@@ -196,6 +202,19 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   const [editedValue, setEditedValue] = useState<string>('');
   const [editedDescriptions, setEditedDescriptions] = useState<string[]>(card.descriptions);
   const [newDescription, setNewDescription] = useState('');
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [onClose]);
 
   const getCommitUrl = (repo: string, commit: string) => {
     const httpsRepo = repo.replace('git@github.com:', 'https://github.com/');

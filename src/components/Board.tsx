@@ -20,6 +20,7 @@ const BoardContainer = styled.div`
   gap: 1rem;
   padding: 1rem;
   height: 100vh;
+  background: #2c3e50;
 `;
 
 interface DroppableColumnProps {
@@ -43,7 +44,7 @@ const Column = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
-  background: #f4f5f7;
+  background: #34495e;
   border-radius: 4px;
   padding: 1rem;
   min-width: 300px;
@@ -51,14 +52,14 @@ const Column = styled.div`
   transition: background-color 0.2s ease;
 
   &[data-is-over="true"] {
-    background-color: #e4e9f2;
+    background-color: #2c3e50;
   }
 `;
 
 const ColumnTitle = styled.h2`
   margin: 0 0 1rem 0;
   font-size: 1.2rem;
-  color: #172b4d;
+  color: #ecf0f1;
 `;
 
 interface DraggableCardProps {
@@ -94,32 +95,33 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ id, children }) => {
 
 const CardContainer = styled.div`
   user-select: none;
-  background: white;
+  background: #2c3e50;
   border-radius: 4px;
   padding: 1rem;
   margin-bottom: 0.5rem;
-  box-shadow: 0 1px 0 rgba(9, 30, 66, 0.25);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
   cursor: pointer;
   
   &:hover {
-    background: #f4f5f7;
+    background: #34495e;
   }
 `;
 
 const CardTitle = styled.h3`
   margin: 0 0 0.5rem 0;
   font-size: 1rem;
+  color: #ecf0f1;
 `;
 
 const CardAssignee = styled.div`
   font-size: 0.8rem;
-  color: #5e6c84;
+  color: #bdc3c7;
   margin-bottom: 0.5rem;
 `;
 
 const CommitLink = styled.a`
   font-size: 0.8rem;
-  color: #0052cc;
+  color: #3498db;
   text-decoration: none;
   display: block;
   margin-top: 0.5rem;
