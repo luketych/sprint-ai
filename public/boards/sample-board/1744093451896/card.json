@@ -1,0 +1,16 @@
+{
+  "title": "Task 8",
+  "status": "todo",
+  "assignee": "vscode:clide",
+  "codebase": {
+    "repo": "https://github.com/getcursor/cursor",
+    "commit": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
+  },
+  "descriptions": [
+    "Refactor component structure",
+    "Implement user authentication"
+  ],
+  "id": "1744093451896",
+  "createdAt": "2025-04-08T06:24:11.896Z",
+  "updatedAt": "2025-04-08T06:24:11.896Z"
+}

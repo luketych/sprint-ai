@@ -1,0 +1,16 @@
+{
+  "title": "Task 9",
+  "status": "done",
+  "assignee": "vscode:clide",
+  "codebase": {
+    "repo": "https://github.com/microsoft/vscode",
+    "commit": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
+  },
+  "descriptions": [
+    "Add new feature X",
+    "Update documentation"
+  ],
+  "id": "1744093847912-o6ypuje6f",
+  "createdAt": "2025-04-08T06:30:47.912Z",
+  "updatedAt": "2025-04-08T06:30:47.912Z"
+}

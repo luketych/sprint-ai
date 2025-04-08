@@ -1,0 +1,13 @@
+{
+  "title": "test",
+  "status": "todo",
+  "assignee": "test",
+  "codebase": {
+    "repo": "test",
+    "commit": "test"
+  },
+  "descriptions": [],
+  "id": "1744095062096",
+  "createdAt": "2025-04-08T06:51:02.096Z",
+  "updatedAt": "2025-04-08T06:51:02.096Z"
+}

@@ -1,0 +1,16 @@
+{
+  "title": "Task 8",
+  "status": "done",
+  "assignee": "vscode:roo",
+  "codebase": {
+    "repo": "https://github.com/microsoft/vscode",
+    "commit": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1"
+  },
+  "descriptions": [
+    "Update documentation",
+    "Add unit tests"
+  ],
+  "id": "1744093787761-i73pq3lva",
+  "createdAt": "2025-04-08T06:29:47.761Z",
+  "updatedAt": "2025-04-08T06:29:47.761Z"
+}

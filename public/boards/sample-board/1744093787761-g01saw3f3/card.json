@@ -1,0 +1,17 @@
+{
+  "title": "Task 9",
+  "status": "doing",
+  "assignee": "cursor",
+  "codebase": {
+    "repo": "https://github.com/openai/openai-python",
+    "commit": "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2"
+  },
+  "descriptions": [
+    "Add unit tests",
+    "Update documentation",
+    "Add new feature X"
+  ],
+  "id": "1744093787761-g01saw3f3",
+  "createdAt": "2025-04-08T06:29:47.761Z",
+  "updatedAt": "2025-04-08T06:29:47.761Z"
+}
