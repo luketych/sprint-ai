@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from '@emotion/styled';
 import { Card, CardFolder, CardStatus } from '../types';
 import { AddCard } from './AddCard';
+import { CardDetail } from './CardDetail';
 import { 
   DndContext, 
   DragEndEvent, 
@@ -135,6 +136,7 @@ interface BoardProps {
 }
 
 export const Board: React.FC<BoardProps> = ({ boardId, cards, onCardsChange }) => {
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -168,6 +170,10 @@ export const Board: React.FC<BoardProps> = ({ boardId, cards, onCardsChange }) =
     }
   };
 
+  const handleCardUpdate = (updatedCard: Card) => {
+    onCardsChange();
+  };
+
   const columns = {
     todo: cards.filter(folder => folder.card.status === 'todo'),
     doing: cards.filter(folder => folder.card.status === 'doing'),
@@ -183,66 +189,74 @@ export const Board: React.FC<BoardProps> = ({ boardId, cards, onCardsChange }) =
   return (
     <DndContext 
       sensors={sensors}
-  onDragCancel={() => onCardsChange()}
+      onDragCancel={() => onCardsChange()}
       collisionDetection={closestCorners} 
       onDragEnd={handleDragEnd}
     >
-    <BoardContainer>
-      <DroppableColumn id="todo" title="Todo">
-        <AddCard boardId={boardId} status="todo" onCardAdded={onCardsChange} />
-        {columns.todo.map(folder => (
-          <DraggableCard key={folder.card.id} id={folder.card.id}>
-          <CardContainer>
-            <CardTitle>{folder.card.title}</CardTitle>
-            <CardAssignee>Assignee: {folder.card.assignee}</CardAssignee>
-            <CommitLink 
-              href={getCommitUrl(folder.card.codebase.repo, folder.card.codebase.commit)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View Commit
-            </CommitLink>
-          </CardContainer>
-          </DraggableCard>
-        ))}
-      </DroppableColumn>
-      <DroppableColumn id="doing" title="Doing">
-        <AddCard boardId={boardId} status="doing" onCardAdded={onCardsChange} />
-        {columns.doing.map(folder => (
-          <DraggableCard key={folder.card.id} id={folder.card.id}>
-          <CardContainer>
-            <CardTitle>{folder.card.title}</CardTitle>
-            <CardAssignee>Assignee: {folder.card.assignee}</CardAssignee>
-            <CommitLink 
-              href={getCommitUrl(folder.card.codebase.repo, folder.card.codebase.commit)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View Commit
-            </CommitLink>
-          </CardContainer>
-          </DraggableCard>
-        ))}
-      </DroppableColumn>
-      <DroppableColumn id="done" title="Done">
-        <AddCard boardId={boardId} status="done" onCardAdded={onCardsChange} />
-        {columns.done.map(folder => (
-          <DraggableCard key={folder.card.id} id={folder.card.id}>
-          <CardContainer>
-            <CardTitle>{folder.card.title}</CardTitle>
-            <CardAssignee>Assignee: {folder.card.assignee}</CardAssignee>
-            <CommitLink 
-              href={getCommitUrl(folder.card.codebase.repo, folder.card.codebase.commit)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View Commit
-            </CommitLink>
-          </CardContainer>
-          </DraggableCard>
-        ))}
-      </DroppableColumn>
-    </BoardContainer>
+      <BoardContainer>
+        <DroppableColumn id="todo" title="Todo">
+          <AddCard boardId={boardId} status="todo" onCardAdded={onCardsChange} />
+          {columns.todo.map(folder => (
+            <DraggableCard key={folder.card.id} id={folder.card.id}>
+              <CardContainer onClick={() => setSelectedCard(folder.card)}>
+                <CardTitle>{folder.card.title}</CardTitle>
+                <CardAssignee>Assignee: {folder.card.assignee}</CardAssignee>
+                <CommitLink 
+                  href={getCommitUrl(folder.card.codebase.repo, folder.card.codebase.commit)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View Commit
+                </CommitLink>
+              </CardContainer>
+            </DraggableCard>
+          ))}
+        </DroppableColumn>
+        <DroppableColumn id="doing" title="Doing">
+          <AddCard boardId={boardId} status="doing" onCardAdded={onCardsChange} />
+          {columns.doing.map(folder => (
+            <DraggableCard key={folder.card.id} id={folder.card.id}>
+              <CardContainer onClick={() => setSelectedCard(folder.card)}>
+                <CardTitle>{folder.card.title}</CardTitle>
+                <CardAssignee>Assignee: {folder.card.assignee}</CardAssignee>
+                <CommitLink 
+                  href={getCommitUrl(folder.card.codebase.repo, folder.card.codebase.commit)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View Commit
+                </CommitLink>
+              </CardContainer>
+            </DraggableCard>
+          ))}
+        </DroppableColumn>
+        <DroppableColumn id="done" title="Done">
+          <AddCard boardId={boardId} status="done" onCardAdded={onCardsChange} />
+          {columns.done.map(folder => (
+            <DraggableCard key={folder.card.id} id={folder.card.id}>
+              <CardContainer onClick={() => setSelectedCard(folder.card)}>
+                <CardTitle>{folder.card.title}</CardTitle>
+                <CardAssignee>Assignee: {folder.card.assignee}</CardAssignee>
+                <CommitLink 
+                  href={getCommitUrl(folder.card.codebase.repo, folder.card.codebase.commit)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View Commit
+                </CommitLink>
+              </CardContainer>
+            </DraggableCard>
+          ))}
+        </DroppableColumn>
+      </BoardContainer>
+      {selectedCard && (
+        <CardDetail 
+          card={selectedCard} 
+          boardId={boardId}
+          onClose={() => setSelectedCard(null)}
+          onCardUpdate={handleCardUpdate}
+        />
+      )}
     </DndContext>
   );
 };
