@@ -1,4 +1,4 @@
-import { Card, CardFolder, Description } from '../types';
+import { Card, CardFolder, Description, DescriptionMetadata } from '../types';
 import { fileSystemService } from './fileSystemService';
 import yaml from 'js-yaml';
 
@@ -13,8 +13,6 @@ interface DescriptionFrontmatter {
   id: string;
   title: string;
   tags: string[];
-  createdAt: string;
-  updatedAt: string;
 }
 
 export const cardService = {
@@ -127,6 +125,17 @@ export const cardService = {
       // Get the list of description files
       const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
       
+      // Load metadata
+      const metadataPath = `${descriptionsDir}/metadata.json`;
+      let metadata: Record<string, DescriptionMetadata> = {};
+      try {
+        const metadataContent = await fileSystemService.readFile(metadataPath);
+        metadata = JSON.parse(metadataContent.trim());
+      } catch (error) {
+        console.warn('No metadata file found, creating new one');
+        await fileSystemService.writeFile(metadataPath, JSON.stringify({}, null, 2));
+      }
+      
       // Load each description file
       const descriptions: Description[] = [];
       for (const fileName of descriptionFiles) {
@@ -144,13 +153,12 @@ export const cardService = {
             markdownContent = content.slice(frontmatterMatch[0].length);
           }
           
+          const id = frontmatter.id || fileName;
           const description: Description = {
-            id: frontmatter.id || fileName,
+            id,
             content: markdownContent,
             title: frontmatter.title || '',
             tags: frontmatter.tags || [],
-            createdAt: frontmatter.createdAt || new Date().toISOString(),
-            updatedAt: frontmatter.updatedAt || new Date().toISOString()
           };
           
           descriptions.push(description);
@@ -203,8 +211,6 @@ export const cardService = {
         id,
         title,
         tags,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
       };
       
       // Create the markdown content with YAML frontmatter
@@ -220,6 +226,25 @@ ${description}`;
       // Create the new description file with the content
       const descriptionPath = `${descriptionsDir}/${newFileName}`;
       await fileSystemService.writeFile(descriptionPath, content);
+
+      // Update metadata
+      const metadataPath = `${descriptionsDir}/metadata.json`;
+      let metadata: Record<string, DescriptionMetadata> = {};
+      try {
+        const metadataContent = await fileSystemService.readFile(metadataPath);
+        metadata = JSON.parse(metadataContent.trim());
+      } catch (error) {
+        console.warn('No metadata file found, creating new one');
+      }
+
+      const now = new Date().toISOString();
+      metadata[id] = {
+        id,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await fileSystemService.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
@@ -382,8 +407,6 @@ ${description}`;
         id: frontmatter.id || descriptionId,
         title: updates.title ?? frontmatter.title ?? '',
         tags: updates.tags ?? frontmatter.tags ?? [],
-        createdAt: frontmatter.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
       };
 
       // Create the new content with updated frontmatter
@@ -393,6 +416,28 @@ ${updates.content ?? currentMarkdownContent}`;
 
       // Write the updated content back to the file
       await fileSystemService.writeFile(descriptionPath, newContent);
+
+      // Update metadata
+      const metadataPath = `${descriptionsDir}/metadata.json`;
+      let metadata: Record<string, DescriptionMetadata> = {};
+      try {
+        const metadataContent = await fileSystemService.readFile(metadataPath);
+        metadata = JSON.parse(metadataContent.trim());
+      } catch (error) {
+        console.warn('No metadata file found, creating new one');
+      }
+
+      if (metadata[descriptionId]) {
+        metadata[descriptionId].updatedAt = new Date().toISOString();
+      } else {
+        metadata[descriptionId] = {
+          id: descriptionId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      await fileSystemService.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;

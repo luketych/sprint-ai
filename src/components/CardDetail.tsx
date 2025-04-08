@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import { Card, CardStatus } from '../types';
-import type { Description } from '../types';
+import type { Card, CardStatus, Description, DescriptionMetadata } from '../types';
 import ReactMarkdown from 'react-markdown';
 import { cardService } from '../services/cardService';
+import { fileSystemService } from '../services/fileSystemService';
 
 const Overlay = styled.div`
   position: fixed;
@@ -69,7 +69,7 @@ const Description = styled.div`
 
 const Metadata = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
   margin-bottom: 1rem;
 `;
@@ -77,16 +77,31 @@ const Metadata = styled.div`
 const MetadataItem = styled.div`
   display: flex;
   flex-direction: column;
+  min-width: 120px;
 `;
 
 const Label = styled.span`
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: #bdc3c7;
   margin-bottom: 0.25rem;
 `;
 
 const Value = styled.span`
   color: #ecf0f1;
+  font-size: 0.8rem;
+`;
+
+const TimestampContainer = styled.div`
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-end;
+`;
+
+const TimestampItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 `;
 
 const CommitLink = styled.a`
@@ -304,6 +319,17 @@ const DeleteDescriptionButton = styled.button`
   }
 `;
 
+const DescriptionMetadata = styled.div`
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #34495e;
+  border-radius: 4px;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  align-items: center;
+`;
+
 interface CardDetailProps {
   card: Card;
   boardId: string;
@@ -313,6 +339,7 @@ interface CardDetailProps {
 
 export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, onCardUpdate }) => {
   const [descriptions, setDescriptions] = useState<Description[]>([]);
+  const [descriptionMetadata, setDescriptionMetadata] = useState<Record<string, DescriptionMetadata>>({});
   const [newDescription, setNewDescription] = useState('');
   const [newDescriptionTitle, setNewDescriptionTitle] = useState('');
   const [newDescriptionTags, setNewDescriptionTags] = useState('');
@@ -327,6 +354,17 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     try {
       const loadedDescriptions = await cardService.getDescriptions(boardId, card.id);
       setDescriptions(loadedDescriptions);
+
+      // Load metadata
+      const metadataPath = `${boardId}/${card.id}/descriptions/metadata.json`;
+      try {
+        const metadataContent = await fileSystemService.readFile(metadataPath);
+        const metadata = JSON.parse(metadataContent.trim());
+        setDescriptionMetadata(metadata);
+      } catch (error) {
+        console.warn('No metadata file found');
+        setDescriptionMetadata({});
+      }
     } catch (error) {
       console.error('Failed to load descriptions:', error);
     }
@@ -497,12 +535,17 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             )}
           </MetadataItem>
           <MetadataItem>
-            <Label>Created</Label>
-            <Value>{new Date(card.createdAt).toLocaleString()}</Value>
-          </MetadataItem>
-          <MetadataItem>
-            <Label>Last Updated</Label>
-            <Value>{new Date(card.updatedAt).toLocaleString()}</Value>
+            <Label>Timestamps</Label>
+            <TimestampContainer>
+              <TimestampItem>
+                <Label>Created</Label>
+                <Value>{new Date(card.createdAt).toLocaleString()}</Value>
+              </TimestampItem>
+              <TimestampItem>
+                <Label>Last Updated</Label>
+                <Value>{new Date(card.updatedAt).toLocaleString()}</Value>
+              </TimestampItem>
+            </TimestampContainer>
           </MetadataItem>
         </Metadata>
 
@@ -555,6 +598,18 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                         <Tag key={i}>{tag}</Tag>
                       ))}
                     </Tags>
+                  )}
+                  {descriptionMetadata[description.id] && (
+                    <DescriptionMetadata>
+                      <TimestampItem>
+                        <Label>Created</Label>
+                        <Value>{new Date(descriptionMetadata[description.id].createdAt).toLocaleString()}</Value>
+                      </TimestampItem>
+                      <TimestampItem>
+                        <Label>Last Updated</Label>
+                        <Value>{new Date(descriptionMetadata[description.id].updatedAt).toLocaleString()}</Value>
+                      </TimestampItem>
+                    </DescriptionMetadata>
                   )}
                   <DescriptionActions>
                     <EditDescriptionButton onClick={() => handleEditDescription(description)}>
