@@ -20,11 +20,16 @@ export const cardService = {
         updatedAt: now,
       };
 
-      const cardPath = `${boardId}/${id}/card.json`;
+      // Create card directory first
+      const cardDir = `${boardId}/${id}`;
+      await fileSystemService.createDirectory(cardDir);
+
+      // Create card.json file
+      const cardPath = `${cardDir}/card.json`;
       await fileSystemService.writeFile(cardPath, JSON.stringify(newCard, null, 2));
 
       // Create descriptions directory
-      const descriptionsDir = `${boardId}/${id}/descriptions`;
+      const descriptionsDir = `${cardDir}/descriptions`;
       await fileSystemService.createDirectory(descriptionsDir);
 
       return {
@@ -33,17 +38,25 @@ export const cardService = {
         path: cardPath,
       };
     } catch (error) {
+      console.error('Error creating card:', error);
       throw new CardServiceError('Failed to create card');
     }
   },
 
   async getCards(boardId: string): Promise<CardFolder[]> {
     try {
-      const cardDirs = await fileSystemService.listDirectory(boardId);
+      // List all directories in the board directory
+      const boardDir = boardId;
+      const cardDirs = await fileSystemService.listDirectory(boardDir);
       const cards: CardFolder[] = [];
 
       for (const cardDir of cardDirs) {
-        const cardPath = `${boardId}/${cardDir}/card.json`;
+        // Skip board.json and other non-card directories
+        if (cardDir === 'board.json' || !cardDir.match(/^\d+$/)) {
+          continue;
+        }
+
+        const cardPath = `${boardDir}/${cardDir}/card.json`;
         if (await fileSystemService.fileExists(cardPath)) {
           try {
             const cardContent = await fileSystemService.readFile(cardPath);
@@ -63,6 +76,7 @@ export const cardService = {
 
       return cards;
     } catch (error) {
+      console.error('Error in getCards:', error);
       throw new CardServiceError('Failed to get cards');
     }
   },
@@ -105,20 +119,42 @@ export const cardService = {
       const descriptions: Description[] = [];
 
       for (const file of files) {
-        if (file.endsWith('.json')) {
+        if (file.endsWith('.md')) {
           const content = await fileSystemService.readFile(`${descriptionsDir}/${file}`);
-          const description = JSON.parse(content.trim());
-          descriptions.push(description);
+          const name = file.replace('.md', '');
+          descriptions.push({
+            name,
+            body: content
+          });
         }
       }
 
       return descriptions.sort((a, b) => {
-        const aNum = parseInt(a.name.split(' ')[1]);
-        const bNum = parseInt(b.name.split(' ')[1]);
+        const aNum = parseInt(a.name.split('_')[1]);
+        const bNum = parseInt(b.name.split('_')[1]);
         return aNum - bNum;
       });
     } catch (error) {
       console.error('Error getting descriptions:', error);
+      return [];
+    }
+  },
+
+  async getDescriptionFiles(boardId: string, cardId: string): Promise<string[]> {
+    try {
+      const descriptionsDir = `${boardId}/${cardId}/descriptions`;
+      const descriptionsJsonPath = `${descriptionsDir}/descriptions.json`;
+      
+      try {
+        const content = await fileSystemService.readFile(descriptionsJsonPath);
+        return JSON.parse(content.trim());
+      } catch (error) {
+        // If the file doesn't exist, create it with an empty array
+        await fileSystemService.writeFile(descriptionsJsonPath, JSON.stringify([], null, 2));
+        return [];
+      }
+    } catch (error) {
+      console.error('Error getting description files:', error);
       return [];
     }
   },
@@ -130,17 +166,19 @@ export const cardService = {
         await fileSystemService.createDirectory(descriptionsDir);
       }
 
-      // Get existing descriptions to determine the next number
-      const files = await fileSystemService.readDirectory(descriptionsDir);
-      const nextNumber = files.length + 1;
+      // Get existing description files
+      const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
+      const nextNumber = descriptionFiles.length + 1;
+      const newFileName = `description_${nextNumber}.md`;
+      
+      // Add the new file to the list
+      descriptionFiles.push(newFileName);
+      const descriptionsJsonPath = `${descriptionsDir}/descriptions.json`;
+      await fileSystemService.writeFile(descriptionsJsonPath, JSON.stringify(descriptionFiles, null, 2));
 
-      const descriptionData: Description = {
-        name: `Description ${nextNumber}`,
-        body: description
-      };
-
-      const descriptionPath = `${descriptionsDir}/description_${nextNumber}.json`;
-      await fileSystemService.writeFile(descriptionPath, JSON.stringify(descriptionData, null, 2));
+      // Create the new description file with the actual content
+      const descriptionPath = `${descriptionsDir}/${newFileName}`;
+      await fileSystemService.writeFile(descriptionPath, description);
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
@@ -159,6 +197,7 @@ export const cardService = {
         path: cardPath,
       };
     } catch (error) {
+      console.error('Error adding description:', error);
       throw new CardServiceError('Failed to add description');
     }
   },
@@ -166,13 +205,27 @@ export const cardService = {
   async deleteDescription(boardId: string, cardId: string, descriptionIndex: number): Promise<CardFolder> {
     try {
       const descriptionsDir = `${boardId}/${cardId}/descriptions`;
-      const descriptionPath = `${descriptionsDir}/description_${descriptionIndex + 1}.json`;
-
-      if (!await fileSystemService.fileExists(descriptionPath)) {
-        throw new CardServiceError(`Description not found: ${descriptionIndex}`);
+      
+      // Get the list of description files
+      const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
+      
+      if (descriptionIndex < 0 || descriptionIndex >= descriptionFiles.length) {
+        throw new CardServiceError(`Invalid description index: ${descriptionIndex}`);
       }
 
-      await fileSystemService.deleteFile(descriptionPath);
+      const fileName = descriptionFiles[descriptionIndex];
+      const descriptionPath = `${descriptionsDir}/${fileName}`;
+
+      try {
+        await fileSystemService.deleteFile(descriptionPath);
+        
+        // Remove the file from the list
+        descriptionFiles.splice(descriptionIndex, 1);
+        const descriptionsJsonPath = `${descriptionsDir}/descriptions.json`;
+        await fileSystemService.writeFile(descriptionsJsonPath, JSON.stringify(descriptionFiles, null, 2));
+      } catch (error) {
+        console.warn(`Error deleting description file: ${descriptionPath}`, error);
+      }
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
@@ -191,17 +244,57 @@ export const cardService = {
         path: cardPath,
       };
     } catch (error) {
+      console.error('Error deleting description:', error);
       throw new CardServiceError('Failed to delete description');
     }
   },
 
   async deleteCard(boardId: string, cardId: string): Promise<void> {
     try {
-      const cardPath = `${boardId}/${cardId}/card.json`;
+      const cardDir = `${boardId}/${cardId}`;
+      
+      // Delete the descriptions directory and its contents
+      const descriptionsDir = `${cardDir}/descriptions`;
+      if (await fileSystemService.directoryExists(descriptionsDir)) {
+        const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
+        for (const fileName of descriptionFiles) {
+          const descriptionPath = `${descriptionsDir}/${fileName}`;
+          try {
+            await fileSystemService.deleteFile(descriptionPath);
+          } catch (error) {
+            console.warn(`Error deleting description file: ${descriptionPath}`, error);
+          }
+        }
+        
+        // Delete the descriptions.json file
+        try {
+          await fileSystemService.deleteFile(`${descriptionsDir}/descriptions.json`);
+        } catch (error) {
+          console.warn('Error deleting descriptions.json:', error);
+        }
+        
+        // Delete the descriptions directory
+        try {
+          await fileSystemService.deleteDirectory(descriptionsDir);
+        } catch (error) {
+          console.warn('Error deleting descriptions directory:', error);
+        }
+      }
+      
+      // Delete the card.json file
+      const cardPath = `${cardDir}/card.json`;
       if (await fileSystemService.fileExists(cardPath)) {
         await fileSystemService.deleteFile(cardPath);
       }
+      
+      // Delete the card directory
+      try {
+        await fileSystemService.deleteDirectory(cardDir);
+      } catch (error) {
+        console.warn('Error deleting card directory:', error);
+      }
     } catch (error) {
+      console.error('Error deleting card:', error);
       throw new CardServiceError('Failed to delete card');
     }
   }

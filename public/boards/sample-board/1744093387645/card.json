@@ -1,6 +1,6 @@
 {
   "title": "Sample Card",
-  "status": "doing",
+  "status": "done",
   "assignee": "vscode:clide",
   "codebase": {
     "repo": "https://github.com/microsoft/vscode",
@@ -8,5 +8,5 @@
   },
   "id": "1744093387645",
   "createdAt": "2025-04-08T06:23:07.645Z",
-  "updatedAt": "2025-04-08T19:13:55.124Z"
+  "updatedAt": "2025-04-08T19:18:31.757Z"
 }

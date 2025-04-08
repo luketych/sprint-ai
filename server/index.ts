@@ -10,6 +10,7 @@ const port = 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.text({ type: 'text/*' }));
 
 // File system operations
 app.get('/boards/*', async (req, res) => {
@@ -40,24 +41,29 @@ app.put('/boards/*', async (req, res) => {
     const dirPath = path.dirname(fullPath);
     await fs.mkdir(dirPath, { recursive: true });
     
-    // Ensure the content is properly formatted JSON
+    // Handle content based on file extension
     let content: string;
-    if (typeof req.body === 'string') {
-      try {
-        // If it's already a string, try to parse and re-stringify to ensure it's valid JSON
-        const parsed = JSON.parse(req.body);
-        content = JSON.stringify(parsed, null, 2);
-      } catch {
-        // If parsing fails, use the string as-is
-        content = req.body;
+    if (filePath.endsWith('.json')) {
+      // For JSON files, ensure proper formatting
+      if (typeof req.body === 'string') {
+        try {
+          const parsed = JSON.parse(req.body);
+          content = JSON.stringify(parsed, null, 2);
+        } catch {
+          content = req.body;
+        }
+      } else {
+        content = JSON.stringify(req.body, null, 2);
       }
     } else {
-      content = JSON.stringify(req.body, null, 2);
+      // For non-JSON files (like .md), use the raw body
+      content = req.body;
     }
     
     await fs.writeFile(fullPath, content);
     res.status(200).json({ message: 'File written successfully' });
   } catch (error) {
+    console.error('Error writing file:', error);
     res.status(500).json({ error: 'Failed to write file' });
   }
 });
@@ -66,9 +72,21 @@ app.delete('/boards/*', async (req, res) => {
   try {
     const filePath = req.path.replace('/boards/', '');
     const fullPath = path.join(process.cwd(), 'public/boards', filePath);
-    await fs.unlink(fullPath);
-    res.status(200).json({ message: 'File deleted successfully' });
+    
+    try {
+      const stats = await fs.stat(fullPath);
+      if (stats.isDirectory()) {
+        await fs.rm(fullPath, { recursive: true, force: true });
+      } else {
+        await fs.unlink(fullPath);
+      }
+      res.status(200).json({ message: 'File deleted successfully' });
+    } catch (error) {
+      // If the file doesn't exist, consider it already deleted
+      res.status(200).json({ message: 'File already deleted' });
+    }
   } catch (error) {
+    console.error('Error deleting file:', error);
     res.status(500).json({ error: 'Failed to delete file' });
   }
 });
@@ -93,6 +111,18 @@ app.post('/boards/*/mkdir', async (req, res) => {
     res.status(200).json({ message: 'Directory created successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create directory' });
+  }
+});
+
+app.delete('/boards/*/rmdir', async (req, res) => {
+  try {
+    const dirPath = req.path.replace('/boards/', '').replace('/rmdir', '');
+    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
+    await fs.rm(fullPath, { recursive: true, force: true });
+    res.status(200).json({ message: 'Directory deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting directory:', error);
+    res.status(500).json({ error: 'Failed to delete directory' });
   }
 });
 

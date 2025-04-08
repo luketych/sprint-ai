@@ -8,11 +8,20 @@ export class FileSystemServiceError extends Error {
 export const fileSystemService = {
   async writeFile(filePath: string, content: string): Promise<void> {
     try {
+      const headers: Record<string, string> = {};
+      
+      // Set content type based on file extension
+      if (filePath.endsWith('.json')) {
+        headers['Content-Type'] = 'application/json';
+      } else if (filePath.endsWith('.md')) {
+        headers['Content-Type'] = 'text/markdown';
+      } else {
+        headers['Content-Type'] = 'text/plain';
+      }
+
       const response = await fetch(`http://localhost:3000/boards/${filePath}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: content,
       });
       
@@ -20,6 +29,7 @@ export const fileSystemService = {
         throw new Error(`Failed to write file: ${response.statusText}`);
       }
     } catch (error) {
+      console.error('Error writing file:', error);
       throw new FileSystemServiceError(`Failed to write file: ${filePath}`, 'FILE_WRITE_ERROR');
     }
   },
@@ -112,6 +122,20 @@ export const fileSystemService = {
       return response.ok;
     } catch {
       return false;
+    }
+  },
+
+  async deleteDirectory(dirPath: string): Promise<void> {
+    try {
+      const response = await fetch(`http://localhost:3000/boards/${dirPath}/rmdir`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete directory: ${response.statusText}`);
+      }
+    } catch (error) {
+      throw new FileSystemServiceError(`Failed to delete directory: ${dirPath}`, 'DIRECTORY_DELETE_ERROR');
     }
   }
 };
