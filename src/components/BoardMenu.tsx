@@ -115,10 +115,16 @@ const Select = styled.select`
   background-color: white;
   margin-right: 1rem;
   min-width: 200px;
+  color: #172b4d;
   
   &:focus {
     outline: none;
     border-color: #0052cc;
+  }
+
+  option {
+    color: #172b4d;
+    background-color: white;
   }
 `;
 
