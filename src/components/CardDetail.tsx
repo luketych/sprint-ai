@@ -91,6 +91,17 @@ const Value = styled.span`
   font-size: 0.8rem;
 `;
 
+const ClickableValue = styled.div`
+  color: #ecf0f1;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  
+  &:hover {
+    color: #3498db;
+  }
+`;
+
 const TimestampContainer = styled.div`
   display: flex;
   gap: 1rem;
@@ -482,6 +493,18 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     setEditingDescription(null);
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${year}_${month}_${day}, ${hours}:${minutes}:${seconds}`;
+  };
+
   return (
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()}>
@@ -496,6 +519,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                 <StatusSelect
                   value={editedValue}
                   onChange={(e) => setEditedValue(e.target.value)}
+                  autoFocus
                 >
                   <option value="todo">Todo</option>
                   <option value="doing">Doing</option>
@@ -507,10 +531,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                 </ButtonGroup>
               </>
             ) : (
-              <>
-                <Value>{card.status}</Value>
-                <EditButton onClick={() => handleEdit('status', card.status)}>Edit</EditButton>
-              </>
+              <ClickableValue onClick={() => handleEdit('status', card.status)}>
+                {card.status}
+              </ClickableValue>
             )}
           </MetadataItem>
           <MetadataItem>
@@ -521,6 +544,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                   type="text"
                   value={editedValue}
                   onChange={(e) => setEditedValue(e.target.value)}
+                  autoFocus
                 />
                 <ButtonGroup>
                   <SaveButton onClick={handleSave}>Save</SaveButton>
@@ -528,25 +552,21 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                 </ButtonGroup>
               </>
             ) : (
-              <>
-                <Value>{card.assignee}</Value>
-                <EditButton onClick={() => handleEdit('assignee', card.assignee)}>Edit</EditButton>
-              </>
+              <ClickableValue onClick={() => handleEdit('assignee', card.assignee)}>
+                {card.assignee}
+              </ClickableValue>
             )}
           </MetadataItem>
-          <MetadataItem>
-            <Label>Timestamps</Label>
-            <TimestampContainer>
-              <TimestampItem>
-                <Label>Created</Label>
-                <Value>{new Date(card.createdAt).toLocaleString()}</Value>
-              </TimestampItem>
-              <TimestampItem>
-                <Label>Last Updated</Label>
-                <Value>{new Date(card.updatedAt).toLocaleString()}</Value>
-              </TimestampItem>
-            </TimestampContainer>
-          </MetadataItem>
+          <TimestampContainer>
+            <TimestampItem>
+              <Label>Created</Label>
+              <Value>{formatDate(card.createdAt)}</Value>
+            </TimestampItem>
+            <TimestampItem>
+              <Label>Last Updated</Label>
+              <Value>{formatDate(card.updatedAt)}</Value>
+            </TimestampItem>
+          </TimestampContainer>
         </Metadata>
 
         <Section>
@@ -603,11 +623,11 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                     <DescriptionMetadata>
                       <TimestampItem>
                         <Label>Created</Label>
-                        <Value>{new Date(descriptionMetadata[description.id].createdAt).toLocaleString()}</Value>
+                        <Value>{formatDate(descriptionMetadata[description.id].createdAt)}</Value>
                       </TimestampItem>
                       <TimestampItem>
                         <Label>Last Updated</Label>
-                        <Value>{new Date(descriptionMetadata[description.id].updatedAt).toLocaleString()}</Value>
+                        <Value>{formatDate(descriptionMetadata[description.id].updatedAt)}</Value>
                       </TimestampItem>
                     </DescriptionMetadata>
                   )}
