@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { Card, CardFolder, CardStatus } from '../types';
 import { AddCard } from './AddCard';
@@ -14,6 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { cardService } from '../services/cardService';
+import { useSearchParams } from 'react-router-dom';
 
 const BoardContainer = styled.div`
   display: flex;
@@ -139,6 +140,29 @@ interface BoardProps {
 
 export const Board: React.FC<BoardProps> = ({ boardId, cards, onCardsChange }) => {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Load selected card from URL on initial render
+  useEffect(() => {
+    const cardId = searchParams.get('card');
+    if (cardId) {
+      const card = cards.find(folder => folder.card.id === cardId)?.card;
+      if (card) {
+        setSelectedCard(card);
+      }
+    }
+  }, [cards, searchParams]);
+
+  // Update URL when card is selected/deselected
+  useEffect(() => {
+    if (selectedCard) {
+      searchParams.set('card', selectedCard.id);
+    } else {
+      searchParams.delete('card');
+    }
+    setSearchParams(searchParams);
+  }, [selectedCard, searchParams, setSearchParams]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {

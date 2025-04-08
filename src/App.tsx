@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter } from 'react-router-dom'
 import { Board as BoardComponent } from './components/Board'
 import { BoardMenu } from './components/BoardMenu'
 import { Card, Board } from './types'
@@ -55,24 +56,26 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <BoardMenu
-        currentBoard={currentBoard}
-        availableBoards={availableBoards}
-        onBoardSelect={setCurrentBoard}
-        onBoardCreate={handleBoardCreate}
-      />
-      {error && <div className="error">{error}</div>}
-      {currentBoard && (
-        <div className="board-container">
-          <BoardComponent 
-            boardId={currentBoard.id}
-            cards={currentBoard.cards} 
-            onCardsChange={refreshBoard}
-          />
-        </div>
-      )}
-    </div>
+    <BrowserRouter>
+      <div className="App">
+        <BoardMenu
+          currentBoard={currentBoard}
+          availableBoards={availableBoards}
+          onBoardSelect={setCurrentBoard}
+          onBoardCreate={handleBoardCreate}
+        />
+        {error && <div className="error">{error}</div>}
+        {currentBoard && (
+          <div className="board-container">
+            <BoardComponent 
+              boardId={currentBoard.id}
+              cards={currentBoard.cards} 
+              onCardsChange={refreshBoard}
+            />
+          </div>
+        )}
+      </div>
+    </BrowserRouter>
   )
 }
 
