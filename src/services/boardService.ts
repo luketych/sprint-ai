@@ -78,8 +78,7 @@ export const boardService = {
       const boardConfig = {
         id,
         name,
-        repoUrl,
-        cards: []
+        repoUrl
       };
 
       await fileSystemService.writeFile(`${id}/board.json`, JSON.stringify(boardConfig, null, 2));
@@ -124,16 +123,10 @@ export const boardService = {
         })
       );
 
-      // Update board with new cards
-      const updatedBoard = {
+      return {
         ...newSampleBoard,
         cards: cardFolders
       };
-
-      // Update board.json with cards
-      await this.updateBoard(updatedBoard);
-
-      return updatedBoard;
     } catch (error) {
       throw new Error('Failed to get sample board');
     }
@@ -144,8 +137,7 @@ export const boardService = {
       const boardConfig = {
         id: board.id,
         name: board.name,
-        repoUrl: board.repoUrl,
-        cards: board.cards
+        repoUrl: board.repoUrl
       };
 
       await fileSystemService.writeFile(`${board.id}/board.json`, JSON.stringify(boardConfig, null, 2));

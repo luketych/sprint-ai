@@ -47,6 +47,27 @@ const CloseButton = styled.button`
 const Title = styled.h2`
   margin: 0 0 1rem 0;
   color: #ecf0f1;
+  cursor: pointer;
+  
+  &:hover {
+    color: #3498db;
+  }
+`;
+
+const TitleInput = styled.input`
+  width: 100%;
+  padding: 0.5rem;
+  margin: 0 0 1rem 0;
+  background: #34495e;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  color: #ecf0f1;
+  font-size: 1.5rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+  }
 `;
 
 const Section = styled.div`
@@ -416,6 +437,8 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
         updates = { status: editedValue as CardStatus };
       } else if (editingField === 'assignee') {
         updates = { assignee: editedValue };
+      } else if (editingField === 'title') {
+        updates = { title: editedValue };
       }
 
       const updatedCard = await cardService.updateCard(boardId, card.id, updates);
@@ -509,7 +532,30 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()}>
         <CloseButton onClick={onClose}>×</CloseButton>
-        <Title>{card.title}</Title>
+        {editingField === 'title' ? (
+          <>
+            <TitleInput
+              value={editedValue}
+              onChange={(e) => setEditedValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSave();
+                } else if (e.key === 'Escape') {
+                  setEditingField(null);
+                }
+              }}
+              autoFocus
+            />
+            <ButtonGroup>
+              <SaveButton onClick={handleSave}>Save</SaveButton>
+              <CancelButton onClick={() => setEditingField(null)}>Cancel</CancelButton>
+            </ButtonGroup>
+          </>
+        ) : (
+          <Title onClick={() => handleEdit('title', card.title)}>
+            {card.title}
+          </Title>
+        )}
         
         <Metadata>
           <MetadataItem>
