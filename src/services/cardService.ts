@@ -115,25 +115,40 @@ export const cardService = {
         return [];
       }
 
-      const files = await fileSystemService.readDirectory(descriptionsDir);
-      const descriptions: Description[] = [];
+      // Get the list of description files
+      const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
+      
+      // Load the metadata file
+      const metadataPath = `${descriptionsDir}/metadata.json`;
+      let metadata: Record<string, any> = {};
+      try {
+        const metadataContent = await fileSystemService.readFile(metadataPath);
+        metadata = JSON.parse(metadataContent);
+      } catch (error) {
+        // If the file doesn't exist, that's fine
+      }
 
-      for (const file of files) {
-        if (file.endsWith('.md')) {
-          const content = await fileSystemService.readFile(`${descriptionsDir}/${file}`);
-          const name = file.replace('.md', '');
+      // Load each description file
+      const descriptions: Description[] = [];
+      for (const fileName of descriptionFiles) {
+        try {
+          const descriptionPath = `${descriptionsDir}/${fileName}`;
+          const content = await fileSystemService.readFile(descriptionPath);
+          const descriptionMetadata = metadata[fileName] || {};
           descriptions.push({
-            name,
-            body: content
+            id: descriptionMetadata.id || fileName,
+            content,
+            title: descriptionMetadata.title || '',
+            tags: descriptionMetadata.tags || [],
+            createdAt: descriptionMetadata.createdAt || new Date().toISOString(),
+            updatedAt: descriptionMetadata.updatedAt || new Date().toISOString()
           });
+        } catch (error) {
+          console.warn(`Error loading description file: ${fileName}`, error);
         }
       }
 
-      return descriptions.sort((a, b) => {
-        const aNum = parseInt(a.name.split('_')[1]);
-        const bNum = parseInt(b.name.split('_')[1]);
-        return aNum - bNum;
-      });
+      return descriptions;
     } catch (error) {
       console.error('Error getting descriptions:', error);
       return [];
@@ -159,7 +174,7 @@ export const cardService = {
     }
   },
 
-  async addDescription(boardId: string, cardId: string, description: string): Promise<CardFolder> {
+  async addDescription(boardId: string, cardId: string, description: string, title: string = '', tags: string[] = []): Promise<CardFolder> {
     try {
       const descriptionsDir = `${boardId}/${cardId}/descriptions`;
       if (!await fileSystemService.directoryExists(descriptionsDir)) {
@@ -171,6 +186,17 @@ export const cardService = {
       const nextNumber = descriptionFiles.length + 1;
       const newFileName = `description_${nextNumber}.md`;
       
+      // Create the description metadata
+      const now = new Date().toISOString();
+      const descriptionMetadata = {
+        id: nextNumber.toString(),
+        content: description,
+        title,
+        tags,
+        createdAt: now,
+        updatedAt: now
+      };
+      
       // Add the new file to the list
       descriptionFiles.push(newFileName);
       const descriptionsJsonPath = `${descriptionsDir}/descriptions.json`;
@@ -180,13 +206,25 @@ export const cardService = {
       const descriptionPath = `${descriptionsDir}/${newFileName}`;
       await fileSystemService.writeFile(descriptionPath, description);
 
+      // Create or update the metadata file
+      const metadataPath = `${descriptionsDir}/metadata.json`;
+      let metadata: Record<string, any> = {};
+      try {
+        const existingMetadata = await fileSystemService.readFile(metadataPath);
+        metadata = JSON.parse(existingMetadata);
+      } catch (error) {
+        // If the file doesn't exist, that's fine
+      }
+      metadata[newFileName] = descriptionMetadata;
+      await fileSystemService.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
       const cardContent = await fileSystemService.readFile(cardPath);
       const card = JSON.parse(cardContent.trim());
       const updatedCard = {
         ...card,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
       };
 
       await fileSystemService.writeFile(cardPath, JSON.stringify(updatedCard, null, 2));
