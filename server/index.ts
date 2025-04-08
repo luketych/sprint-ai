@@ -20,10 +20,10 @@ app.get('/boards/*', async (req, res) => {
     
     if (stats.isDirectory()) {
       const files = await fs.readdir(fullPath, { withFileTypes: true });
-      const dirs = files
-        .filter(dirent => dirent.isDirectory())
+      const items = files
+        .filter(dirent => !dirent.name.startsWith('.') && dirent.name !== '__MACOSX')
         .map(dirent => dirent.name);
-      res.json({ files: dirs });
+      res.json({ files: items });
     } else {
       const content = await fs.readFile(fullPath, 'utf-8');
       res.send(content);
@@ -77,8 +77,42 @@ app.head('/boards/*', async (req, res) => {
   try {
     const filePath = req.path.replace('/boards/', '');
     const fullPath = path.join(process.cwd(), 'public/boards', filePath);
-    await fs.access(fullPath);
+    const stats = await fs.stat(fullPath);
     res.status(200).end();
+  } catch (error) {
+    res.status(404).end();
+  }
+});
+
+// Directory operations
+app.post('/boards/*/mkdir', async (req, res) => {
+  try {
+    const dirPath = req.path.replace('/boards/', '').replace('/mkdir', '');
+    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
+    await fs.mkdir(fullPath, { recursive: true });
+    res.status(200).json({ message: 'Directory created successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create directory' });
+  }
+});
+
+app.get('/boards/*/ls', async (req, res) => {
+  try {
+    const dirPath = req.path.replace('/boards/', '').replace('/ls', '');
+    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
+    const files = await fs.readdir(fullPath);
+    res.json({ files });
+  } catch (error) {
+    res.status(404).json({ error: 'Directory not found' });
+  }
+});
+
+app.head('/boards/*/exists', async (req, res) => {
+  try {
+    const dirPath = req.path.replace('/boards/', '').replace('/exists', '');
+    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
+    const stats = await fs.stat(fullPath);
+    res.status(stats.isDirectory() ? 200 : 404).end();
   } catch (error) {
     res.status(404).end();
   }

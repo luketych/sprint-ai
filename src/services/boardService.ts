@@ -3,6 +3,19 @@ import { cardService } from './cardService';
 import { fileSystemService } from './fileSystemService';
 import { generateTestCards } from '../utils/testData';
 
+const testDescriptions = [
+  'Implement user authentication',
+  'Add dark mode support',
+  'Fix performance issues',
+  'Update documentation',
+  'Refactor component structure',
+  'Add unit tests',
+  'Implement error handling',
+  'Optimize database queries',
+  'Add new feature X',
+  'Fix bug in Y component'
+];
+
 export const boardService = {
   async getBoards(): Promise<Board[]> {
     try {
@@ -97,7 +110,18 @@ export const boardService = {
       // Generate and add sample cards
       const testCards = generateTestCards(10);
       const cardFolders = await Promise.all(
-        testCards.map(card => cardService.createCard(newSampleBoard.id, card))
+        testCards.map(async (card) => {
+          const cardFolder = await cardService.createCard(newSampleBoard.id, card);
+          
+          // Add descriptions for each card
+          const numDescriptions = Math.floor(Math.random() * 3) + 1;
+          for (let i = 0; i < numDescriptions; i++) {
+            const description = testDescriptions[Math.floor(Math.random() * testDescriptions.length)];
+            await cardService.addDescription(newSampleBoard.id, cardFolder.id, description);
+          }
+          
+          return cardFolder;
+        })
       );
 
       // Update board with new cards

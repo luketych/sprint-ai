@@ -75,5 +75,43 @@ export const fileSystemService = {
     } catch (error) {
       return [];
     }
+  },
+
+  async createDirectory(dirPath: string): Promise<void> {
+    try {
+      const response = await fetch(`http://localhost:3000/boards/${dirPath}/mkdir`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to create directory: ${response.statusText}`);
+      }
+    } catch (error) {
+      throw new FileSystemServiceError(`Failed to create directory: ${dirPath}`, 'DIRECTORY_CREATE_ERROR');
+    }
+  },
+
+  async readDirectory(dirPath: string): Promise<string[]> {
+    try {
+      const response = await fetch(`http://localhost:3000/boards/${dirPath}`);
+      if (!response.ok) {
+        return [];
+      }
+      const { files } = await response.json();
+      return files.filter((name: string) => name !== '__MACOSX' && !name.startsWith('.'));
+    } catch (error) {
+      return [];
+    }
+  },
+
+  async directoryExists(dirPath: string): Promise<boolean> {
+    try {
+      const response = await fetch(`http://localhost:3000/boards/${dirPath}`, {
+        method: 'HEAD',
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 };

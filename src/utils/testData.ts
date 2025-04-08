@@ -13,18 +13,6 @@ export const generateTestCards = (count: number): Omit<Card, 'id' | 'createdAt' 
     'b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1',
     'c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2'
   ];
-  const descriptions = [
-    'Implement user authentication',
-    'Add dark mode support',
-    'Fix performance issues',
-    'Update documentation',
-    'Refactor component structure',
-    'Add unit tests',
-    'Implement error handling',
-    'Optimize database queries',
-    'Add new feature X',
-    'Fix bug in Y component'
-  ];
 
   // Create a sample card first
   const sampleCard: Omit<Card, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -34,8 +22,7 @@ export const generateTestCards = (count: number): Omit<Card, 'id' | 'createdAt' 
     codebase: {
       repo: 'https://github.com/microsoft/vscode',
       commit: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0'
-    },
-    descriptions: ['This is a sample card showing the correct assignee format']
+    }
   };
 
   // Generate random cards
@@ -46,11 +33,7 @@ export const generateTestCards = (count: number): Omit<Card, 'id' | 'createdAt' 
     codebase: {
       repo: repos[Math.floor(Math.random() * repos.length)],
       commit: commits[Math.floor(Math.random() * commits.length)]
-    },
-    descriptions: Array.from(
-      { length: Math.floor(Math.random() * 3) + 1 },
-      () => descriptions[Math.floor(Math.random() * descriptions.length)]
-    )
+    }
   }));
 
   return [sampleCard, ...randomCards];

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { Card, CardStatus } from '../types';
+import type { Description } from '../types';
 import ReactMarkdown from 'react-markdown';
 import { cardService } from '../services/cardService';
 
@@ -200,8 +201,21 @@ interface CardDetailProps {
 export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, onCardUpdate }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
-  const [editedDescriptions, setEditedDescriptions] = useState<string[]>(card.descriptions);
+  const [descriptions, setDescriptions] = useState<Description[]>([]);
   const [newDescription, setNewDescription] = useState('');
+
+  useEffect(() => {
+    const loadDescriptions = async () => {
+      try {
+        const loadedDescriptions = await cardService.getDescriptions(boardId, card.id);
+        setDescriptions(loadedDescriptions);
+      } catch (error) {
+        console.error('Failed to load descriptions:', error);
+      }
+    };
+
+    loadDescriptions();
+  }, [boardId, card.id]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -234,8 +248,6 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
         updates = { status: editedValue as CardStatus };
       } else if (editingField === 'assignee') {
         updates = { assignee: editedValue };
-      } else if (editingField === 'descriptions') {
-        updates = { descriptions: editedDescriptions };
       }
 
       const updatedCard = await cardService.updateCard(boardId, card.id, updates);
@@ -251,7 +263,8 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     
     try {
       const updatedCard = await cardService.addDescription(boardId, card.id, newDescription);
-      setEditedDescriptions(updatedCard.card.descriptions);
+      const loadedDescriptions = await cardService.getDescriptions(boardId, card.id);
+      setDescriptions(loadedDescriptions);
       setNewDescription('');
       onCardUpdate(updatedCard.card);
     } catch (error) {
@@ -260,12 +273,10 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   };
 
   const handleDeleteDescription = async (index: number) => {
-    const newDescriptions = [...editedDescriptions];
-    newDescriptions.splice(index, 1);
-    setEditedDescriptions(newDescriptions);
-    
     try {
-      const updatedCard = await cardService.updateCard(boardId, card.id, { descriptions: newDescriptions });
+      const updatedCard = await cardService.deleteDescription(boardId, card.id, index);
+      const loadedDescriptions = await cardService.getDescriptions(boardId, card.id);
+      setDescriptions(loadedDescriptions);
       onCardUpdate(updatedCard.card);
     } catch (error) {
       console.error('Failed to delete description:', error);
@@ -347,9 +358,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
 
         <Section>
           <SectionTitle>Descriptions</SectionTitle>
-          {editedDescriptions.map((description, index) => (
+          {descriptions.map((description, index) => (
             <Description key={index}>
-              <ReactMarkdown>{description}</ReactMarkdown>
+              <ReactMarkdown>{description.body}</ReactMarkdown>
               <EditButton onClick={() => handleDeleteDescription(index)}>Delete</EditButton>
             </Description>
           ))}

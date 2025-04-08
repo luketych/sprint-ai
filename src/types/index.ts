@@ -9,15 +9,19 @@ export interface Card {
     repo: string;
     commit: string;
   };
-  descriptions: string[];
   createdAt: string;
   updatedAt: string;
 }
 
+export interface Description {
+  name: string;
+  body: string;
+}
+
 export interface CardFolder {
   id: string;
-  path: string;
   card: Card;
+  path: string;
 }
 
 export interface Board {

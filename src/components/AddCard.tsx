@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from '@emotion/styled';
-import { CardStatus } from '../types';
 import { cardService } from '../services/cardService';
+import { CardStatus } from '../types';
 
 const AddCardContainer = styled.div`
   margin-bottom: 1rem;
@@ -99,8 +99,7 @@ export const AddCard: React.FC<AddCardProps> = ({ boardId, status, onCardAdded }
         codebase: {
           repo,
           commit,
-        },
-        descriptions: [],
+        }
       });
       
       setTitle('');
