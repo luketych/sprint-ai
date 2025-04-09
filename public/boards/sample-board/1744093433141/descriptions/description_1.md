@@ -1,6 +1,6 @@
 ---
 id: '1'
-title: title
+title: Potential Strategies for implementing card.
 tags: []
 ---
-hello world
+test

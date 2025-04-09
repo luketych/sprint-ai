@@ -377,12 +377,28 @@ const TitleSelect = styled.select`
   }
 `;
 
+const TagBubble = styled.div<{ selected: boolean }>`
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  margin: 0.25rem;
+  border-radius: 20px;
+  background: ${({ selected }) => (selected ? '#3498db' : '#34495e')};
+  color: #ecf0f1;
+  cursor: pointer;
+  transition: background 0.3s;
+
+  &:hover {
+    background: #2980b9;
+  }
+`;
+
 const descriptionTitleOptions = [
   "What does done look like?",
   "What does good enough look like?",
   "What tests should be passed?",
   "Constants: What can't be changed?",
   "New Technologies:",
+  "Potential Strategies for implementing card."
 ];
 
 interface CardDetailProps {
@@ -404,6 +420,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   const [editDescriptionTags, setEditDescriptionTags] = useState('');
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editedValue, setEditedValue] = useState('');
+  const [usedTitles, setUsedTitles] = useState<string[]>([]);
 
   const loadDescriptions = async () => {
     try {
@@ -441,6 +458,11 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
       window.removeEventListener('keydown', handleEscape);
     };
   }, [onClose]);
+
+  useEffect(() => {
+    const titles = descriptions.map(description => description.title);
+    setUsedTitles(titles);
+  }, [descriptions]);
 
   const getCommitUrl = (repo: string, commit: string) => {
     const httpsRepo = repo.replace('git@github.com:', 'https://github.com/');
@@ -509,7 +531,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   const handleEditDescription = (description: Description) => {
     setEditingDescription(description);
     setEditDescriptionContent(description.content);
-    setEditDescriptionTitle(descriptionTitleOptions.includes(description.title) ? description.title : '');
+    setEditDescriptionTitle(description.title);
     setEditDescriptionTags(description.tags.join(', '));
   };
 
@@ -550,6 +572,16 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     
     return `${year}_${month}_${day}, ${hours}:${minutes}:${seconds}`;
   };
+
+  const handleTitleSelect = (title: string) => {
+    setNewDescriptionTitle(title);
+  };
+
+  const handleEditTitleSelect = (title: string) => {
+    setEditDescriptionTitle(title);
+  };
+
+  const availableTitleOptions = descriptionTitleOptions.filter(option => !usedTitles.includes(option));
 
   return (
     <Overlay onClick={onClose}>
@@ -655,16 +687,17 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             <Description key={description.id}>
               {editingDescription?.id === description.id ? (
                 <>
-                  <TitleSelect
-                    value={editDescriptionTitle}
-                    onChange={(e) => setEditDescriptionTitle(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>Select a title...</option>
-                    {descriptionTitleOptions.map(option => (
-                      <option key={option} value={option}>{option}</option>
+                  <div>
+                    {availableTitleOptions.map(option => (
+                      <TagBubble
+                        key={option}
+                        selected={editDescriptionTitle === option}
+                        onClick={() => handleEditTitleSelect(option)}
+                      >
+                        {option}
+                      </TagBubble>
                     ))}
-                  </TitleSelect>
+                  </div>
                   <DescriptionTextarea
                     value={editDescriptionContent}
                     onChange={(e) => setEditDescriptionContent(e.target.value)}
@@ -717,16 +750,17 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             </Description>
           ))}
           <AddDescriptionContainer>
-            <TitleSelect
-              value={newDescriptionTitle}
-              onChange={(e) => setNewDescriptionTitle(e.target.value)}
-              required
-            >
-              <option value="" disabled>Select a title...</option>
-              {descriptionTitleOptions.map(option => (
-                <option key={option} value={option}>{option}</option>
+            <div>
+              {availableTitleOptions.map(option => (
+                <TagBubble
+                  key={option}
+                  selected={newDescriptionTitle === option}
+                  onClick={() => handleTitleSelect(option)}
+                >
+                  {option}
+                </TagBubble>
               ))}
-            </TitleSelect>
+            </div>
             <Input
               type="text"
               placeholder="Tags (comma-separated)"

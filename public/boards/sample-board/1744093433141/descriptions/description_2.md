@@ -1,6 +1,6 @@
 ---
 id: '2'
-title: What does good enough look like?
+title: What tests should be passed?
 tags: []
 ---
 test

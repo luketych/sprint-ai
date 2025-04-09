@@ -138,21 +138,6 @@ export const AddCard: React.FC<AddCardProps> = ({ boardId, status, onCardAdded }
           placeholder="Assignee"
           value={assignee}
           onChange={(e) => setAssignee(e.target.value)}
-          required
-        />
-        <FormInput
-          type="text"
-          placeholder="Repository URL"
-          value={repo}
-          onChange={(e) => setRepo(e.target.value)}
-          required
-        />
-        <FormInput
-          type="text"
-          placeholder="Commit hash"
-          value={commit}
-          onChange={(e) => setCommit(e.target.value)}
-          required
         />
         <FormButtons>
           <SubmitButton type="submit">Add Card</SubmitButton>

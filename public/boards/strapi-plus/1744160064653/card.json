@@ -1,0 +1,12 @@
+{
+  "title": "test",
+  "status": "todo",
+  "assignee": "luke",
+  "codebase": {
+    "repo": "",
+    "commit": ""
+  },
+  "id": "1744160064653",
+  "createdAt": "2025-04-09T00:54:24.653Z",
+  "updatedAt": "2025-04-09T00:54:31.892Z"
+}
