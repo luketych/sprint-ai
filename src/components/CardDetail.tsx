@@ -393,6 +393,7 @@ const TagBubble = styled.div<{ selected: boolean }>`
 `;
 
 const descriptionTitleOptions = [
+  "Purpose",
   "What does done look like?",
   "What does good enough look like?",
   "What tests should be passed?",

@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Board as BoardComponent } from './components/Board'
 import { BoardMenu } from './components/BoardMenu'
 import { Board } from './types/index'
 import { boardService } from './services/boardService'
 import './App.css'
 
-function App() {
+function BoardView() {
+  const { boardId } = useParams<{ boardId: string }>();
   const [currentBoard, setCurrentBoard] = useState<Board | null>(null);
   const [availableBoards, setAvailableBoards] = useState<Board[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const loadBoards = async () => {
     try {
       const boards = await boardService.getBoards();
       setAvailableBoards(boards);
-      if (boards.length > 0 && !currentBoard) {
-        setCurrentBoard(boards[0]);
+      const board = boards.find(b => b.id === boardId);
+      if (board) {
+        setCurrentBoard(board);
       }
       setError(null);
     } catch (err) {
@@ -41,7 +44,7 @@ function App() {
 
   useEffect(() => {
     loadBoards();
-  }, []);
+  }, [boardId]);
 
   const handleBoardCreate = async (name: string, repoUrl: string) => {
     try {
@@ -56,27 +59,36 @@ function App() {
   };
 
   return (
+    <div className="App">
+      <BoardMenu
+        currentBoard={currentBoard}
+        availableBoards={availableBoards}
+        onBoardSelect={(board) => navigate(`/boards/${board.id}`)}
+        onBoardCreate={handleBoardCreate}
+      />
+      {error && <div className="error">{error}</div>}
+      {currentBoard && (
+        <div className="board-container">
+          <BoardComponent 
+            boardId={currentBoard.id}
+            cards={currentBoard.cards} 
+            onCardsChange={refreshBoard}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  return (
     <BrowserRouter>
-      <div className="App">
-        <BoardMenu
-          currentBoard={currentBoard}
-          availableBoards={availableBoards}
-          onBoardSelect={setCurrentBoard}
-          onBoardCreate={handleBoardCreate}
-        />
-        {error && <div className="error">{error}</div>}
-        {currentBoard && (
-          <div className="board-container">
-            <BoardComponent 
-              boardId={currentBoard.id}
-              cards={currentBoard.cards} 
-              onCardsChange={refreshBoard}
-            />
-          </div>
-        )}
-      </div>
+      <Routes>
+        <Route path="/boards/:boardId" element={<BoardView />} />
+        <Route path="/" element={<BoardView />} />
+      </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
 export default App
