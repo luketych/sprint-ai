@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import type { Card, CardStatus, Description, DescriptionMetadata } from '../types';
+import type { Card, Description, DescriptionMetadata } from '../types';
 import ReactMarkdown from 'react-markdown';
 import { cardService } from '../services/cardService';
-import { fileSystemService } from '../services/fileSystemService';
-import { v4 as uuidv4 } from 'uuid';
 
 const Overlay = styled.div`
   position: fixed;
@@ -16,7 +14,7 @@ const Overlay = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 1001; /* Ensure it's above the overlay content */
 `;
 
 const Modal = styled.div`
@@ -45,34 +43,8 @@ const CloseButton = styled.button`
   }
 `;
 
-const Title = styled.h2`
-  margin: 0 0 1rem 0;
-  color: #ecf0f1;
-  cursor: pointer;
-  
-  &:hover {
-    color: #3498db;
-  }
-`;
-
-const TitleInput = styled.input`
-  width: 100%;
-  padding: 0.5rem;
-  margin: 0 0 1rem 0;
-  background: #34495e;
-  border: 1px solid #3498db;
-  border-radius: 4px;
-  color: #ecf0f1;
-  font-size: 1.5rem;
-  
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-  }
-`;
-
 const Section = styled.div`
-  margin-bottom: 1.5rem;
+  margin-bottom: 20px;
 `;
 
 const SectionTitle = styled.h3`
@@ -111,17 +83,6 @@ const Label = styled.span`
 const Value = styled.span`
   color: #ecf0f1;
   font-size: 0.8rem;
-`;
-
-const ClickableValue = styled.div`
-  color: #ecf0f1;
-  font-size: 0.8rem;
-  cursor: pointer;
-  padding: 0.25rem 0;
-  
-  &:hover {
-    color: #3498db;
-  }
 `;
 
 const TimestampContainer = styled.div`
@@ -238,11 +199,6 @@ const CancelButton = styled.button`
 const ButtonGroup = styled.div`
   display: flex;
   margin-top: 0.5rem;
-`;
-
-const DescriptionTitle = styled.h4`
-  margin: 0 0 0.5rem 0;
-  color: #ecf0f1;
 `;
 
 const Tags = styled.div`
@@ -364,48 +320,6 @@ const DescriptionMetadata = styled.div`
   align-items: center;
 `;
 
-const TitleSelect = styled.select`
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #34495e;
-  border-radius: 3px;
-  margin-bottom: 0.5rem;
-  background: #34495e;
-  color: #ecf0f1;
-  
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-  }
-`;
-
-const TagBubble = styled.div<{ selected: boolean }>`
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  margin: 0.25rem;
-  border-radius: 20px;
-  background: ${({ selected }) => (selected ? '#3498db' : '#34495e')};
-  color: #ecf0f1;
-  cursor: pointer;
-  transition: background 0.3s;
-
-  &:hover {
-    background: #2980b9;
-  }
-`;
-
-const descriptionTitleOptions = [
-  "Purpose",
-  "Things I will have to figure out by playing around",
-  "Uncertainties",
-  "What does done look like?",
-  "What does good enough look like?",
-  "What tests should be passed?",
-  "Constants: What can't be changed?",
-  "New Technologies:",
-  "Potential Strategies for implementing card."
-];
-
 interface CardDetailProps {
   card: Card;
   boardId: string;
@@ -413,39 +327,9 @@ interface CardDetailProps {
   onCardUpdate: (updatedCard: Card) => void;
 }
 
-const createThumbnail = (file: File): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      img.src = e.target?.result as string;
-    };
-
-    img.onload = () => {
-      const scaleFactor = 100 / img.width;
-      canvas.width = 100;
-      canvas.height = img.height * scaleFactor;
-      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Thumbnail creation failed.'));
-        }
-      }, 'image/jpeg');
-    };
-
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
-
 export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, onCardUpdate }) => {
   const [descriptions, setDescriptions] = useState<Description[]>([]);
-  const [descriptionMetadata, setDescriptionMetadata] = useState<Record<string, DescriptionMetadata>>({});
+  const [descriptionMetadata, setDescriptionMetadata] = useState<DescriptionMetadata | null>(null);
   const [newDescription, setNewDescription] = useState('');
   const [newDescriptionTitle, setNewDescriptionTitle] = useState('');
   const [newDescriptionTags, setNewDescriptionTags] = useState('');
@@ -462,8 +346,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   });
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editedValue, setEditedValue] = useState('');
-  const [usedTitles, setUsedTitles] = useState<string[]>([]);
-  const [imageUrls, setImageUrls] = useState<{ image: string; thumbnail: string }[]>([]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   const loadDescriptions = async () => {
     try {
@@ -473,12 +356,14 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
       // Load metadata
       const metadataPath = `${boardId}/${card.id}/descriptions/metadata.json`;
       try {
-        const metadataContent = await fileSystemService.readTextFile(metadataPath);
-        const metadata = JSON.parse(metadataContent.trim());
-        setDescriptionMetadata(metadata);
+        // TODO: Implement cardService.readTextFile or equivalent API call
+        // const metadataContent = await cardService.readTextFile(metadataPath);
+        // const metadata = JSON.parse(metadataContent.trim());
+        // setDescriptionMetadata(metadata);
+        console.warn(`Metadata loading skipped for ${metadataPath} - requires cardService implementation`);
       } catch (error) {
-        console.warn('No metadata file found');
-        setDescriptionMetadata({});
+        console.error('Error loading description metadata:', error);
+        setDescriptionMetadata(null); // Reset or handle error state
       }
     } catch (error) {
       console.error('Failed to load descriptions:', error);
@@ -486,21 +371,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   };
 
   const loadImages = async () => {
+    if (!boardId || !card?.id) return; // Guard clause
     try {
-      const files = await fileSystemService.listDirectory(`uploads/${boardId}/${card.id}`);
-      const images: { image: string; thumbnail: string }[] = [];
-
-      for (const file of files) {
-        if (file.startsWith('thumbnail')) continue;
-
-        const image = `/uploads/${boardId}/${card.id}/${file}`;
-        const thumbnail = `/uploads/${boardId}/${card.id}/thumbnail_${file}`;
-
-        images.push({ image, thumbnail });
-      }
-      setImageUrls(images);
+      console.log(`[CardDetail] Calling getCardImages for board ${boardId}, card ${card.id}`);
+      const fetchedImageUrls = await cardService.getCardImages(boardId, card.id);
+      console.log('[CardDetail] Fetched image URLs from service:', fetchedImageUrls);
+      setImageUrls(fetchedImageUrls);
     } catch (error) {
-      console.error('Failed to load images:', error);
+      console.error('[CardDetail] Error in loadImages:', error);
+      setImageUrls([]); // Ensure state is empty on error
     }
   };
 
@@ -624,8 +503,59 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     setEditingDescription({ ...editingDescription, description: null });
   };
 
-  const handleEditTitleSelect = (title: string) => {
-    setEditingDescription({ ...editingDescription, title: title });
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files ? event.target.files[0] : null;
+    if (!file || !boardId || !card?.id) return;
+
+    const formData = new FormData();
+    formData.append('images', file); // Use 'images' as the field name, matching backend
+
+    const uploadUrl = `/api/boards/${boardId}/cards/${card.id}/upload-images`;
+    console.log(`[CardDetail] Uploading image to: ${uploadUrl}`);
+
+    try {
+      const response = await fetch(uploadUrl, { 
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({})); // Attempt to get error details
+        console.error('[CardDetail] Upload failed:', response.status, response.statusText, errorData);
+        throw new Error(`Image upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('[CardDetail] Upload successful, result:', result);
+
+      // Assuming the backend returns the new path(s) correctly
+      // Use the path returned by the backend, which should now include board/card IDs
+      const newImageUrl = result.paths && result.paths.length > 0 ? result.paths[0] : null;
+      if (newImageUrl) {
+        setImageUrls(prev => [...prev, newImageUrl]);
+      } else {
+        console.warn('[CardDetail] Upload response did not contain expected path:', result);
+      }
+
+    } catch (error) {
+      console.error('[CardDetail] Error during image upload fetch:', error);
+    }
+  };
+
+  const handleDeleteImage = async (imagePathToDelete: string) => {
+    try {
+      const filename = imagePathToDelete.split('/').pop();
+      if (!filename) throw new Error('Could not extract filename');
+      const response = await fetch(`/api/uploads/${filename}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to delete: ${response.statusText}`);
+      }
+      setImageUrls(prevUrls => prevUrls.filter(url => url !== imagePathToDelete));
+      console.log(`Deleted image: ${filename}`);
+    } catch (error) {
+      console.error(`Error deleting image ${imagePathToDelete}:`, error);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -634,87 +564,17 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     return date.toLocaleDateString('en-US', options);
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) {
-      console.warn('No files selected');
-      return;
-    }
-
-    const file = files[0];
-    if (!file.type.startsWith('image/')) {
-      console.warn('Not an image file');
-      return;
-    }
-
-    try {
-      // Create parent directory first
-      await fileSystemService.createUploadsDirectory(`${boardId}/${card.id}`);
-
-      // Create thumbnail
-      const thumbnailBlob = await createThumbnail(file);
-      const thumbnailFile = new File([thumbnailBlob], `thumbnail_${file.name}`, { type: 'image/jpeg' });
-
-      // Upload image and thumbnail
-      // const formData = new FormData();
-      // formData.append('image', file);
-      // formData.append('thumbnail', thumbnailFile);
-
-      // const imageUrls = await cardService.uploadImage(boardId, card.id, formData);
-      // setImageUrls(imageUrls);
-
-      const imageBuffer = await file.arrayBuffer();
-      const thumbnailBuffer = await thumbnailFile.arrayBuffer();
-
-      await fileSystemService.writeFile(
-        `${boardId}/${card.id}/${file.name}`,
-        imageBuffer // Pass ArrayBuffer directly
-      );
-      await fileSystemService.writeFile(
-        `${boardId}/${card.id}/thumbnail_${file.name}`,
-        thumbnailBuffer // Pass ArrayBuffer directly
-      );
-
-      setImageUrls([{ 
-          image: `/uploads/${boardId}/${card.id}/${file.name}`, 
-          thumbnail: `/uploads/${boardId}/${card.id}/thumbnail_${file.name}` 
-      }]);
-    } catch (error) {
-      console.error('Error uploading image:', error);
-    }
-  };
-
-  const handleDeleteImage = async (imagePath: string, thumbnailPath: string) => {
-    try {
-      // Extract relative path for API call (remove leading '/uploads/')
-      const relativeImagePath = imagePath.replace(/^\/uploads\//, '');
-      const relativeThumbnailPath = thumbnailPath.replace(/^\/uploads\//, '');
-
-      // Delete both files using the service
-      await fileSystemService.deleteFileFromUploads(relativeImagePath);
-      await fileSystemService.deleteFileFromUploads(relativeThumbnailPath);
-
-      // Update state to remove the image entry
-      setImageUrls(prevUrls => prevUrls.filter(url => url.image !== imagePath));
-      console.log(`Deleted image and thumbnail: ${relativeImagePath}`);
-
-    } catch (error) {
-      console.error(`Error deleting image ${imagePath}:`, error);
-      // Optionally, show an error message to the user
-    }
-  };
-
-  const availableTitleOptions = descriptionTitleOptions.filter(option => !usedTitles.includes(option));
+  console.log('[CardDetail] Rendering with imageUrls:', imageUrls); // Log state before render
 
   return (
     <Overlay onClick={onClose}>
-      <Modal onClick={e => e.stopPropagation()}>
+      <Modal onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <CloseButton onClick={onClose}>&times;</CloseButton>
-        <TitleInput
+        <EditInput
           type="text"
           value={card.title}
-          onChange={(e) => handleEdit('title', e.target.value)}
-          onKeyDown={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEdit('title', e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent) => {
             if (e.key === 'Enter') {
               handleSave();
             }
@@ -741,7 +601,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
               <>
                 <StatusSelect
                   value={card.status}
-                  onChange={(e) => handleEdit('status', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleEdit('status', e.target.value)}
                 >
                   <option value="open">Open</option>
                   <option value="in progress">In Progress</option>
@@ -771,7 +631,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                 <EditInput
                   type="text"
                   value={editedValue}
-                  onChange={(e) => setEditedValue(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedValue(e.target.value)}
                   placeholder="Repo/Commit"
                 />
                 <ButtonGroup>
@@ -821,24 +681,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             <Description key={description.id}>
               {editingDescription.description?.id === description.id ? (
                 <>
-                  <div>
-                    {availableTitleOptions.map(option => (
-                      <TagBubble
-                        key={option}
-                        selected={editingDescription.title === option}
-                        onClick={() => handleEditTitleSelect(option)}
-                      />
-                    ))}
-                  </div>
                   <DescriptionTextarea
                     value={editingDescription.content}
-                    onChange={(e) => setEditingDescription({ ...editingDescription, content: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditingDescription({ ...editingDescription, content: e.target.value })}
                     placeholder="Description"
                   />
                   <EditInput
                     type="text"
                     value={editingDescription.tags}
-                    onChange={(e) => setEditingDescription({ ...editingDescription, tags: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingDescription({ ...editingDescription, tags: e.target.value })}
                     placeholder="Tags (comma-separated)"
                   />
                   <ButtonGroup>
@@ -848,7 +699,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                 </>
               ) : (
                 <>
-                  {description.title && <DescriptionTitle>{description.title}</DescriptionTitle>}
+                  {description.title && <h3>{description.title}</h3>}
                   <ReactMarkdown>{description.content}</ReactMarkdown>
                   {description.tags.length > 0 && (
                     <Tags>
@@ -857,15 +708,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
                       ))}
                     </Tags>
                   )}
-                  {descriptionMetadata[description.id] && (
+                  {descriptionMetadata && (
                     <DescriptionMetadata>
                       <TimestampItem>
                         <Label>Created</Label>
-                        <Value>{formatDate(descriptionMetadata[description.id].createdAt)}</Value>
+                        <Value>{formatDate(descriptionMetadata.createdAt)}</Value>
                       </TimestampItem>
                       <TimestampItem>
                         <Label>Last Updated</Label>
-                        <Value>{formatDate(descriptionMetadata[description.id].updatedAt)}</Value>
+                        <Value>{formatDate(descriptionMetadata.updatedAt)}</Value>
                       </TimestampItem>
                     </DescriptionMetadata>
                   )}
@@ -882,33 +733,22 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             </Description>
           ))}
           <AddDescriptionContainer>
-            <div>
-              {availableTitleOptions.map(option => (
-                <TagBubble
-                  key={option}
-                  selected={newDescriptionTitle === option}
-                  onClick={() => setNewDescriptionTitle(option)}
-                >
-                  {option}
-                </TagBubble>
-              ))}
-            </div>
             <Input
               type="text"
               placeholder="Title"
               value={newDescriptionTitle}
-              onChange={(e) => setNewDescriptionTitle(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDescriptionTitle(e.target.value)}
             />
             <TextArea
               placeholder="Description"
               value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewDescription(e.target.value)}
             />
             <Input
               type="text"
               placeholder="Tags (comma-separated)"
               value={newDescriptionTags}
-              onChange={(e) => setNewDescriptionTags(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDescriptionTags(e.target.value)}
             />
             <AddButton onClick={handleAddDescription}>Add Description</AddButton>
           </AddDescriptionContainer>
@@ -922,12 +762,16 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             multiple={false}
             onChange={handleImageUpload}
           />
-          {imageUrls.map(({ image, thumbnail }) => (
-            <div key={image}>
-              <img src={thumbnail} alt="thumbnail" />
-              <DeleteButton onClick={() => handleDeleteImage(image, thumbnail)}>Delete</DeleteButton>
-            </div>
-          ))}
+          {imageUrls.map((imageUrl) => { // Iterate over string URLs
+            // Display the image. Assuming these are directly servable URLs.
+            // Consider adding a thumbnail convention if needed later.
+            return (
+              <div key={imageUrl} style={{ display: 'inline-block', margin: '5px', textAlign: 'center' }}>
+                <img src={imageUrl} alt="Uploaded content" style={{ maxWidth: '100px', maxHeight: '100px', display: 'block', marginBottom: '5px' }} />
+                <DeleteButton onClick={() => handleDeleteImage(imageUrl)}>Delete</DeleteButton>
+              </div>
+            );
+          })}
         </Section>
       </Modal>
     </Overlay>

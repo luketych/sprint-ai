@@ -15,39 +15,6 @@ interface DescriptionFrontmatter {
   tags: string[];
 }
 
-async function getImages(boardId: string, cardId: string): Promise<{ image: string; thumbnail: string }[]> {
-  try {
-      // Try to list directly from uploads directory
-      try {
-        // List files in the uploads directory
-        const files = await fileSystemService.listDirectory(`uploads/${boardId}/${cardId}`);
-      const images: { image: string; thumbnail: string }[] = [];
-      
-      // Find image files (excluding thumbnails)
-      const imageFiles = files.filter(file => !file.startsWith('thumbnail'));
-      
-      // Try to match each image with its thumbnail
-      for (const imageFile of imageFiles) {
-        const thumbnail = files.find(f => f === 'thumbnail.jpg');
-        if (thumbnail) {
-          images.push({
-            image: `/uploads/${boardId}/${cardId}/${imageFile}`,
-            thumbnail: `/uploads/${boardId}/${cardId}/${thumbnail}`
-          });
-        }
-      }
-      
-      return images;
-    } catch (dirError) {
-      console.log('No uploads directory found for card:', boardId, cardId);
-      return [];
-    }
-  } catch (error) {
-    console.error('Error getting images:', error);
-    return [];
-  }
-}
-
 export const cardService = {
   async createCard(boardId: string, card: Omit<Card, 'id' | 'createdAt' | 'updatedAt'>): Promise<CardFolder> {
     try {
@@ -138,6 +105,8 @@ export const cardService = {
 
       const cardContent = await fileSystemService.readTextFile(cardPath);
       const card = JSON.parse(cardContent.trim());
+
+      // Apply updates
       const updatedCard = {
         ...card,
         ...updates,
@@ -165,17 +134,6 @@ export const cardService = {
 
       // Get the list of description files
       const descriptionFiles = await this.getDescriptionFiles(boardId, cardId);
-      
-      // Load metadata
-      const metadataPath = `${descriptionsDir}/metadata.json`;
-      let metadata: Record<string, DescriptionMetadata> = {};
-      try {
-        const metadataContent = await fileSystemService.readTextFile(metadataPath);
-        metadata = JSON.parse(metadataContent.trim());
-      } catch (error) {
-        console.warn('No metadata file found, creating new one');
-        await fileSystemService.writeFile(metadataPath, JSON.stringify({}, null, 2));
-      }
       
       // Load each description file
       const descriptions: Description[] = [];
@@ -501,5 +459,29 @@ ${updates.content ?? currentMarkdownContent}`;
       throw new CardServiceError('Failed to update description');
     }
   },
-  getImages,
+
+  async getCardImages(boardId: string, cardId: string): Promise<string[]> {
+    try {
+      const apiUrl = `/api/boards/${boardId}/cards/${cardId}/images`;
+      console.log(`[cardService] Fetching image URLs from: ${apiUrl}`);
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          console.error(`[cardService] Error fetching image URLs: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch image URLs: ${response.statusText}`);
+        }
+        const imageUrls: string[] = await response.json();
+        console.log(`[cardService] Received image URLs:`, imageUrls);
+        return imageUrls;
+      } catch (error) {
+        console.error('[cardService] Error in getCardImages:', error);
+        // Return empty array on error so the UI doesn't break
+        return [];
+      }
+    } catch (error) {
+      console.error(`Error fetching images for card ${cardId}:`, error);
+      // Return empty array on error so the UI doesn't break
+      return [];
+    }
+  },
 };

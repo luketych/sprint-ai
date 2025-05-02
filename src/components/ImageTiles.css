@@ -1,0 +1,51 @@
+.image-tiles-container {
+  padding: 20px;
+  border: 1px solid #ccc;
+  margin-top: 20px;
+  border-radius: 8px;
+}
+
+.upload-controls {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.upload-button {
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.upload-button:hover {
+  background-color: #0056b3;
+}
+
+.thumbnail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.thumbnail-item {
+  border: 1px solid #eee;
+  padding: 5px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  aspect-ratio: 1 / 1; /* Maintain square aspect ratio */
+}
+
+.thumbnail-item img {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  object-fit: cover; /* Cover the area without distortion */
+}
