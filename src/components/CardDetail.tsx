@@ -3,6 +3,8 @@ import styled from '@emotion/styled';
 import type { Card, Description, DescriptionMetadata } from '../types';
 import ReactMarkdown from 'react-markdown';
 import { cardService } from '../services/cardService';
+import ImageTiles from './ImageTiles'; // Ensure ImageTiles is imported
+import ImageModal from './ImageModal'; // Import the new modal component
 
 const Overlay = styled.div`
   position: fixed;
@@ -263,20 +265,6 @@ const AddButton = styled.button`
   }
 `;
 
-const DeleteButton = styled.button`
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 0.5rem;
-  
-  &:hover {
-    background: #c0392b;
-  }
-`;
-
 const DescriptionActions = styled.div`
   display: flex;
   gap: 0.5rem;
@@ -347,6 +335,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editedValue, setEditedValue] = useState('');
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   const loadDescriptions = async () => {
     try {
@@ -558,6 +547,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
     }
   };
 
+  const handleImageTileClick = (url: string) => {
+    console.log('[CardDetail] Image tile clicked:', url);
+    setSelectedImageUrl(url);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedImageUrl(null);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
@@ -762,18 +760,16 @@ export const CardDetail: React.FC<CardDetailProps> = ({ card, boardId, onClose, 
             multiple={false}
             onChange={handleImageUpload}
           />
-          {imageUrls.map((imageUrl) => { // Iterate over string URLs
-            // Display the image. Assuming these are directly servable URLs.
-            // Consider adding a thumbnail convention if needed later.
-            return (
-              <div key={imageUrl} style={{ display: 'inline-block', margin: '5px', textAlign: 'center' }}>
-                <img src={imageUrl} alt="Uploaded content" style={{ maxWidth: '100px', maxHeight: '100px', display: 'block', marginBottom: '5px' }} />
-                <DeleteButton onClick={() => handleDeleteImage(imageUrl)}>Delete</DeleteButton>
-              </div>
-            );
-          })}
+          <ImageTiles 
+            imageUrls={imageUrls} 
+            onDelete={handleDeleteImage} 
+            onImageClick={handleImageTileClick} 
+          />
         </Section>
       </Modal>
+      {selectedImageUrl && (
+        <ImageModal imageUrl={selectedImageUrl} onClose={handleCloseModal} />
+      )}
     </Overlay>
   );
 };
