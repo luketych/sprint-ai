@@ -30,4 +30,11 @@ export interface Description {
   content: string;
   title: string;
   tags: string[];
-} 
+}
+
+export interface Board {
+  id: string;
+  name: string;
+  repoUrl: string;
+  cards: CardFolder[];
+}

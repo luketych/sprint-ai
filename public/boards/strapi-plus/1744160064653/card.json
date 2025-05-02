@@ -1,5 +1,5 @@
 {
-  "title": "test",
+  "title": "Add support for atoms, molecules",
   "status": "todo",
   "assignee": "luke",
   "codebase": {
@@ -8,5 +8,5 @@
   },
   "id": "1744160064653",
   "createdAt": "2025-04-09T00:54:24.653Z",
-  "updatedAt": "2025-04-09T00:54:31.892Z"
+  "updatedAt": "2025-04-09T01:36:21.819Z"
 }

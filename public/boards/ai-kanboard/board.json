@@ -1,6 +1,6 @@
 {
-  "id": "test-board",
-  "name": "Test Board",
+  "id": "ai-kanboard",
+  "name": "AI Kanboard",
   "repoUrl": "https://github.com/test/test",
   "cards": []
 }

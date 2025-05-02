@@ -1,197 +1,211 @@
 import express from 'express';
 import cors from 'cors';
-import { cardService } from '../src/services/cardService';
-import { Card, CardStatus } from '../src/types';
-import fs from 'fs/promises';
 import path from 'path';
+import fs from 'fs/promises';
+import apiRouter from './api-router';
+
+interface FileUpload {
+  mv: (path: string) => Promise<void>;
+}
+
+interface FileUploadRequest extends express.Request {
+  files?: {
+    [key: string]: FileUpload | FileUpload[];
+  };
+}
 
 const app = express();
-const port = 3000;
+const port = 3456;
 
+// Ensure required directories exist
+const ensureDirectories = async () => {
+  const publicUploadsPath = path.join(process.cwd(), 'public', 'uploads');
+  try {
+    await fs.mkdir(publicUploadsPath, { recursive: true });
+    console.log('Public uploads directory ready:', publicUploadsPath);
+  } catch (err) {
+    console.error('Error creating public uploads directory:', err);
+  }
+};
+
+// Initialize directories
+ensureDirectories();
+
+// Utility to list directory contents with file type
+const listUploadDir = async (dirPath: string) => {
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    return {
+      files: entries
+        .filter(entry => !entry.name.startsWith('.'))
+        .map(entry => ({
+          name: entry.name,
+          type: entry.isDirectory() ? 'directory' : 'file'
+        }))
+    };
+  } catch (err) {
+    console.error('Error listing directory:', err);
+    return { files: [] };
+  }
+};
+
+// Basic middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.text({ type: 'text/*' }));
+app.use(express.json()); // For parsing application/json
+// Add middleware for parsing raw application/octet-stream bodies
+app.use('/api/uploads', express.raw({ type: 'application/octet-stream', limit: '10mb' }));
 
-// File system operations
-app.get('/boards/*', async (req, res) => {
-  try {
-    const filePath = req.path.replace('/boards/', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', filePath);
-    const stats = await fs.stat(fullPath);
-    
-    if (stats.isDirectory()) {
-      const files = await fs.readdir(fullPath, { withFileTypes: true });
-      const items = files
-        .filter(dirent => !dirent.name.startsWith('.') && dirent.name !== '__MACOSX')
-        .map(dirent => dirent.name);
-      res.json({ files: items });
-    } else {
-      const content = await fs.readFile(fullPath, 'utf-8');
-      res.send(content);
-    }
-  } catch (error) {
-    res.status(404).json({ error: 'File not found' });
-  }
-});
+// Serve uploads directory statically with CORS
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+}, express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-app.put('/boards/*', async (req, res) => {
+// Handle directory listings for uploads
+app.get('/uploads/*', async (req, res) => {
   try {
-    const filePath = req.path.replace('/boards/', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', filePath);
-    const dirPath = path.dirname(fullPath);
-    await fs.mkdir(dirPath, { recursive: true });
+    const requestedPath = req.params[0] || '';
+    const absolutePath = path.join(process.cwd(), 'public', 'uploads', requestedPath);
     
-    // Handle content based on file extension
-    let content: string;
-    if (filePath.endsWith('.json')) {
-      // For JSON files, ensure proper formatting
-      if (typeof req.body === 'string') {
-        try {
-          const parsed = JSON.parse(req.body);
-          content = JSON.stringify(parsed, null, 2);
-        } catch {
-          content = req.body;
-        }
-      } else {
-        content = JSON.stringify(req.body, null, 2);
-      }
-    } else {
-      // For non-JSON files (like .md), use the raw body
-      content = req.body;
-    }
-    
-    await fs.writeFile(fullPath, content);
-    res.status(200).json({ message: 'File written successfully' });
-  } catch (error) {
-    console.error('Error writing file:', error);
-    res.status(500).json({ error: 'Failed to write file' });
-  }
-});
-
-app.delete('/boards/*', async (req, res) => {
-  try {
-    const filePath = req.path.replace('/boards/', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', filePath);
-    
+    // Check if path exists
     try {
-      const stats = await fs.stat(fullPath);
+      const stats = await fs.stat(absolutePath);
       if (stats.isDirectory()) {
-        await fs.rm(fullPath, { recursive: true, force: true });
+        // If it's a directory, return listing
+        const listing = await listUploadDir(absolutePath);
+        res.json(listing);
       } else {
-        await fs.unlink(fullPath);
+        // If it's a file, serve it
+        res.sendFile(absolutePath);
       }
-      res.status(200).json({ message: 'File deleted successfully' });
-    } catch (error) {
-      // If the file doesn't exist, consider it already deleted
-      res.status(200).json({ message: 'File already deleted' });
+    } catch (err) {
+      res.status(404).json({ error: 'Not found' });
     }
-  } catch (error) {
-    console.error('Error deleting file:', error);
-    res.status(500).json({ error: 'Failed to delete file' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-app.head('/boards/*', async (req, res) => {
+// Request logging
+app.use((req, res, next) => {
+  console.log(`[${req.method}] ${req.originalUrl}`);
+  next();
+});
+
+// API Routes
+app.use('/api', (req, res, next) => {
+  console.log('API Request:', req.method, req.url);
+  next();
+});
+
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'API is running',
+    endpoints: ['/api/boards']
+  });
+});
+
+app.use('/api/boards', apiRouter);
+
+// *** NEW: Handler for raw binary file uploads ***
+app.post('/api/uploads/*', async (req, res) => {
   try {
-    const filePath = req.path.replace('/boards/', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', filePath);
-    const stats = await fs.stat(fullPath);
-    res.status(200).end();
-  } catch (error) {
-    res.status(404).end();
+    const filePathParam = req.params[0];
+    if (!filePathParam) {
+      return res.status(400).json({ error: 'File path is required' });
+    }
+
+    // Construct the target path within the public/uploads directory
+    const targetBasePath = path.join(process.cwd(), 'public', 'uploads');
+    const targetPath = path.join(targetBasePath, filePathParam);
+
+    // Security check: Ensure the final path is still within the targetBasePath
+    const resolvedPath = path.resolve(targetPath);
+    if (!resolvedPath.startsWith(path.resolve(targetBasePath))) {
+      console.error(`Security Alert: Attempted path traversal: ${filePathParam}`);
+      return res.status(403).json({ error: 'Forbidden: Invalid file path' });
+    }
+
+    // Ensure the directory exists
+    const dirName = path.dirname(targetPath);
+    await fs.mkdir(dirName, { recursive: true });
+
+    // Write the raw buffer from the request body to the file
+    // express.raw() middleware should place the buffer in req.body
+    if (!(req.body instanceof Buffer)) {
+       console.error('Error: req.body is not a Buffer. Middleware setup issue?');
+       return res.status(500).json({ error: 'Server error: Could not process request body' });
+    }
+    
+    await fs.writeFile(targetPath, req.body);
+    console.log(`File saved successfully: ${targetPath}`);
+    res.status(201).json({ message: 'File uploaded successfully', path: `/uploads/${filePathParam}` });
+
+  } catch (err) {
+    console.error('Error handling file upload:', err);
+    // Provide a more specific error message if possible
+    let errorMessage = 'Failed to upload file';
+    if (err instanceof Error && 'code' in err) { 
+        if (err.code === 'ENOENT') errorMessage = 'Failed to upload file: Directory path issue.';
+        else if (err.code === 'EACCES') errorMessage = 'Failed to upload file: Permission denied.';
+    }
+    res.status(500).json({ error: errorMessage, details: err instanceof Error ? err.message : String(err) });
   }
 });
 
-// Directory operations
-app.post('/boards/*/mkdir', async (req, res) => {
+// *** NEW: Handler for deleting files ***
+app.delete('/api/uploads/*', async (req, res) => {
   try {
-    const dirPath = req.path.replace('/boards/', '').replace('/mkdir', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
-    await fs.mkdir(fullPath, { recursive: true });
-    res.status(200).json({ message: 'Directory created successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create directory' });
+    const filePathParam = req.params[0];
+    if (!filePathParam) {
+      return res.status(400).json({ error: 'File path is required' });
+    }
+
+    // Construct the target path within the public/uploads directory
+    const targetBasePath = path.join(process.cwd(), 'public', 'uploads');
+    const targetPath = path.join(targetBasePath, filePathParam);
+
+    // Security check: Ensure the final path is still within the targetBasePath
+    const resolvedPath = path.resolve(targetPath);
+    if (!resolvedPath.startsWith(path.resolve(targetBasePath))) {
+      console.error(`Security Alert: Attempted path traversal for delete: ${filePathParam}`);
+      return res.status(403).json({ error: 'Forbidden: Invalid file path' });
+    }
+
+    // Check if file exists before attempting deletion
+    try {
+      await fs.access(targetPath); // Check file existence and permissions
+    } catch (accessError) {
+      // If fs.access throws, file likely doesn't exist or isn't accessible
+      console.warn(`File not found or inaccessible for deletion: ${targetPath}`);
+      return res.status(404).json({ error: 'File not found or inaccessible' });
+    }
+
+    // Delete the file
+    await fs.unlink(targetPath);
+    console.log(`File deleted successfully: ${targetPath}`);
+    res.status(200).json({ message: 'File deleted successfully' });
+
+  } catch (err) {
+    console.error('Error handling file deletion:', err);
+    let errorMessage = 'Failed to delete file';
+    if (err instanceof Error && 'code' in err) {
+      if (err.code === 'EACCES') errorMessage = 'Failed to delete file: Permission denied.';
+      // Other specific errors can be handled here
+    }
+    res.status(500).json({ error: errorMessage, details: err instanceof Error ? err.message : String(err) });
   }
 });
 
-app.delete('/boards/*/rmdir', async (req, res) => {
-  try {
-    const dirPath = req.path.replace('/boards/', '').replace('/rmdir', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
-    await fs.rm(fullPath, { recursive: true, force: true });
-    res.status(200).json({ message: 'Directory deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting directory:', error);
-    res.status(500).json({ error: 'Failed to delete directory' });
-  }
-});
-
-app.get('/boards/*/ls', async (req, res) => {
-  try {
-    const dirPath = req.path.replace('/boards/', '').replace('/ls', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
-    const files = await fs.readdir(fullPath);
-    res.json({ files });
-  } catch (error) {
-    res.status(404).json({ error: 'Directory not found' });
-  }
-});
-
-app.head('/boards/*/exists', async (req, res) => {
-  try {
-    const dirPath = req.path.replace('/boards/', '').replace('/exists', '');
-    const fullPath = path.join(process.cwd(), 'public/boards', dirPath);
-    const stats = await fs.stat(fullPath);
-    res.status(stats.isDirectory() ? 200 : 404).end();
-  } catch (error) {
-    res.status(404).end();
-  }
-});
-
-// Get all cards
-app.get('/api/cards', async (req, res) => {
-  try {
-    const boardId = req.query.boardId as string;
-    const cards = await cardService.getCards(boardId);
-    res.json(cards);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch cards' });
-  }
-});
-
-// Create a new card
-app.post('/api/cards', async (req, res) => {
-  try {
-    const { boardId, card } = req.body;
-    const newCard = await cardService.createCard(boardId, card);
-    res.status(201).json(newCard);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create card' });
-  }
-});
-
-// Update a card
-app.put('/api/cards/:id', async (req, res) => {
-  try {
-    const { boardId, updates } = req.body;
-    const card = await cardService.updateCard(boardId, req.params.id, updates);
-    res.json(card);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update card' });
-  }
-});
-
-// Add a description to a card
-app.post('/api/cards/:id/descriptions', async (req, res) => {
-  try {
-    const { boardId, description } = req.body;
-    await cardService.addDescription(boardId, req.params.id, description);
-    res.status(201).json({ message: 'Description added successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to add description' });
-  }
-});
+// Start server
+console.log('Starting server...');
+console.log('Working directory:', process.cwd());
+console.log('Boards path:', path.join(process.cwd(), 'public/boards'));
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`\nServer running at http://localhost:${port}`);
+  console.log('\nTry these endpoints:');
+  console.log(`curl http://localhost:${port}/api`);
+  console.log(`curl http://localhost:${port}/api/boards`);
 });

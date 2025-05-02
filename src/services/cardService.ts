@@ -15,6 +15,39 @@ interface DescriptionFrontmatter {
   tags: string[];
 }
 
+async function getImages(boardId: string, cardId: string): Promise<{ image: string; thumbnail: string }[]> {
+  try {
+      // Try to list directly from uploads directory
+      try {
+        // List files in the uploads directory
+        const files = await fileSystemService.listDirectory(`uploads/${boardId}/${cardId}`);
+      const images: { image: string; thumbnail: string }[] = [];
+      
+      // Find image files (excluding thumbnails)
+      const imageFiles = files.filter(file => !file.startsWith('thumbnail'));
+      
+      // Try to match each image with its thumbnail
+      for (const imageFile of imageFiles) {
+        const thumbnail = files.find(f => f === 'thumbnail.jpg');
+        if (thumbnail) {
+          images.push({
+            image: `/uploads/${boardId}/${cardId}/${imageFile}`,
+            thumbnail: `/uploads/${boardId}/${cardId}/${thumbnail}`
+          });
+        }
+      }
+      
+      return images;
+    } catch (dirError) {
+      console.log('No uploads directory found for card:', boardId, cardId);
+      return [];
+    }
+  } catch (error) {
+    console.error('Error getting images:', error);
+    return [];
+  }
+}
+
 export const cardService = {
   async createCard(boardId: string, card: Omit<Card, 'id' | 'createdAt' | 'updatedAt'>): Promise<CardFolder> {
     try {
@@ -39,6 +72,14 @@ export const cardService = {
       const descriptionsDir = `${cardDir}/descriptions`;
       await fileSystemService.createDirectory(descriptionsDir);
 
+      // Create descriptions.json file
+      const descriptionsJsonPath = `${descriptionsDir}/descriptions.json`;
+      await fileSystemService.writeFile(descriptionsJsonPath, JSON.stringify([], null, 2));
+
+      // Create metadata.json file
+      const metadataPath = `${descriptionsDir}/metadata.json`;
+      await fileSystemService.writeFile(metadataPath, JSON.stringify({}, null, 2));
+
       return {
         id,
         card: newCard,
@@ -52,21 +93,21 @@ export const cardService = {
 
   async getCards(boardId: string): Promise<CardFolder[]> {
     try {
-      // List all directories in the board directory
       const boardDir = boardId;
       const cardDirs = await fileSystemService.listDirectory(boardDir);
       const cards: CardFolder[] = [];
 
       for (const cardDir of cardDirs) {
-        // Skip board.json and other non-card directories
-        if (cardDir === 'board.json' || !cardDir.match(/^\d+$/)) {
-          continue;
-        }
+        // Skip board.json file, continue for directory entries
+        if (cardDir === 'board.json' || !cardDir) continue;
 
+        // Try to load card.json from this directory
         const cardPath = `${boardDir}/${cardDir}/card.json`;
+        console.log('Attempting to load card from:', cardPath);
+        console.log('Checking card path:', cardPath);
         if (await fileSystemService.fileExists(cardPath)) {
           try {
-            const cardContent = await fileSystemService.readFile(cardPath);
+            const cardContent = await fileSystemService.readTextFile(cardPath);
             const card = JSON.parse(cardContent.trim());
             cards.push({
               id: card.id,
@@ -95,7 +136,7 @@ export const cardService = {
         throw new CardServiceError(`Card not found: ${cardId}`);
       }
 
-      const cardContent = await fileSystemService.readFile(cardPath);
+      const cardContent = await fileSystemService.readTextFile(cardPath);
       const card = JSON.parse(cardContent.trim());
       const updatedCard = {
         ...card,
@@ -129,7 +170,7 @@ export const cardService = {
       const metadataPath = `${descriptionsDir}/metadata.json`;
       let metadata: Record<string, DescriptionMetadata> = {};
       try {
-        const metadataContent = await fileSystemService.readFile(metadataPath);
+        const metadataContent = await fileSystemService.readTextFile(metadataPath);
         metadata = JSON.parse(metadataContent.trim());
       } catch (error) {
         console.warn('No metadata file found, creating new one');
@@ -141,7 +182,7 @@ export const cardService = {
       for (const fileName of descriptionFiles) {
         try {
           const descriptionPath = `${descriptionsDir}/${fileName}`;
-          const content = await fileSystemService.readFile(descriptionPath);
+          const content = await fileSystemService.readTextFile(descriptionPath);
           
           // Parse YAML frontmatter
           const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
@@ -180,7 +221,7 @@ export const cardService = {
       const descriptionsJsonPath = `${descriptionsDir}/descriptions.json`;
       
       try {
-        const content = await fileSystemService.readFile(descriptionsJsonPath);
+        const content = await fileSystemService.readTextFile(descriptionsJsonPath);
         return JSON.parse(content.trim());
       } catch (error) {
         // If the file doesn't exist, create it with an empty array
@@ -231,7 +272,7 @@ ${description}`;
       const metadataPath = `${descriptionsDir}/metadata.json`;
       let metadata: Record<string, DescriptionMetadata> = {};
       try {
-        const metadataContent = await fileSystemService.readFile(metadataPath);
+        const metadataContent = await fileSystemService.readTextFile(metadataPath);
         metadata = JSON.parse(metadataContent.trim());
       } catch (error) {
         console.warn('No metadata file found, creating new one');
@@ -248,7 +289,7 @@ ${description}`;
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
-      const cardContent = await fileSystemService.readFile(cardPath);
+      const cardContent = await fileSystemService.readTextFile(cardPath);
       const card = JSON.parse(cardContent.trim());
       const updatedCard = {
         ...card,
@@ -295,7 +336,7 @@ ${description}`;
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
-      const cardContent = await fileSystemService.readFile(cardPath);
+      const cardContent = await fileSystemService.readTextFile(cardPath);
       const card = JSON.parse(cardContent.trim());
       const updatedCard = {
         ...card,
@@ -364,7 +405,7 @@ ${description}`;
       const metadataPath = `${boardId}/metadata.json`;
       if (await fileSystemService.fileExists(metadataPath)) {
         try {
-          const metadataContent = await fileSystemService.readFile(metadataPath);
+          const metadataContent = await fileSystemService.readTextFile(metadataPath);
           const metadata = JSON.parse(metadataContent);
           if (metadata.cards && metadata.cards[cardId]) {
             delete metadata.cards[cardId];
@@ -390,7 +431,7 @@ ${description}`;
       }
 
       // Read the current description content
-      const currentContent = await fileSystemService.readFile(descriptionPath);
+      const currentContent = await fileSystemService.readTextFile(descriptionPath);
       
       // Parse the current frontmatter
       const frontmatterMatch = currentContent.match(/^---\n([\s\S]*?)\n---\n/);
@@ -421,7 +462,7 @@ ${updates.content ?? currentMarkdownContent}`;
       const metadataPath = `${descriptionsDir}/metadata.json`;
       let metadata: Record<string, DescriptionMetadata> = {};
       try {
-        const metadataContent = await fileSystemService.readFile(metadataPath);
+        const metadataContent = await fileSystemService.readTextFile(metadataPath);
         metadata = JSON.parse(metadataContent.trim());
       } catch (error) {
         console.warn('No metadata file found, creating new one');
@@ -441,7 +482,7 @@ ${updates.content ?? currentMarkdownContent}`;
 
       // Update card's updatedAt
       const cardPath = `${boardId}/${cardId}/card.json`;
-      const cardContent = await fileSystemService.readFile(cardPath);
+      const cardContent = await fileSystemService.readTextFile(cardPath);
       const card = JSON.parse(cardContent.trim());
       const updatedCard = {
         ...card,
@@ -459,5 +500,6 @@ ${updates.content ?? currentMarkdownContent}`;
       console.error('Error updating description:', error);
       throw new CardServiceError('Failed to update description');
     }
-  }
+  },
+  getImages,
 };

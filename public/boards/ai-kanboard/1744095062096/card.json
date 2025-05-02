@@ -1,5 +1,5 @@
 {
-  "title": "test",
+  "title": "issue: text in cards gets centered",
   "status": "todo",
   "assignee": "test",
   "codebase": {
@@ -12,5 +12,5 @@
   ],
   "id": "1744095062096",
   "createdAt": "2025-04-08T06:51:02.096Z",
-  "updatedAt": "2025-04-08T07:29:01.119Z"
+  "updatedAt": "2025-04-09T01:23:58.306Z"
 }

@@ -26,7 +26,7 @@ export const boardService = {
         try {
           const boardConfigPath = `${boardDir}/board.json`;
           if (await fileSystemService.fileExists(boardConfigPath)) {
-            const boardContent = await fileSystemService.readFile(boardConfigPath);
+            const boardContent = await fileSystemService.readTextFile(boardConfigPath);
             const boardConfig = JSON.parse(boardContent);
             const cards = await cardService.getCards(boardDir);
             
@@ -57,7 +57,7 @@ export const boardService = {
         throw new Error(`Board not found: ${id}`);
       }
 
-      const boardContent = await fileSystemService.readFile(boardConfigPath);
+      const boardContent = await fileSystemService.readTextFile(boardConfigPath);
       const boardConfig = JSON.parse(boardContent);
       const cards = await cardService.getCards(id);
 
