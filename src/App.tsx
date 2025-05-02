@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Board as BoardComponent } from './components/Board'
 import { BoardMenu } from './components/BoardMenu'
-import { ImageTiles } from './components/ImageTiles';
 import { Board } from './types/index'
 import { boardService } from './services/boardService'
-import './components/ImageTiles.css';
 
 function BoardView() {
   const { boardId } = useParams<{ boardId: string }>();
@@ -68,7 +66,6 @@ function BoardView() {
         onBoardCreate={handleBoardCreate}
       />
       {error && <div className="error">{error}</div>}
-      <ImageTiles /> 
       {currentBoard && (
         <div className="board-container">
           <BoardComponent 
